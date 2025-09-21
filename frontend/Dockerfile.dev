@@ -1,0 +1,19 @@
+# Development Dockerfile with hot reload
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files first (cache layer)
+COPY package*.json ./
+
+# Install all dependencies including dev dependencies
+RUN npm install --silent
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server with hot reload
+CMD ["npm", "start"]
