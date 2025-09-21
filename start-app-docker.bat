@@ -1,7 +1,7 @@
 @echo off
 REM filepath: start-app-docker.bat
 echo ==========================================
-echo    AgentCores MVP - Docker Setup
+echo   AgentCores Multi-Tenant - Docker Setup
 echo ==========================================
 
 echo.
@@ -38,7 +38,7 @@ if %errorlevel% neq 0 (
 echo Docker Compose found!
 
 echo.
-echo [3/6] Setting up environment...
+echo [3/6] Setting up multi-tenant environment...
 cd /d "D:\Projects\get-github-user-details-master\AgentCores"
 
 echo.
@@ -52,28 +52,29 @@ if not exist .env (
 )
 
 echo.
-echo [5/6] Building and starting Docker services with optimization...
+echo [5/6] Building and starting Multi-Tenant Docker services...
 cd ..
 echo.
 echo This will start:
-echo - PostgreSQL Database
+echo - PostgreSQL Database (Multi-tenant with isolation)
 echo - Redis Cache
-echo - FastAPI Backend (with hot reload)
-echo - React Frontend (with hot reload)
+echo - Database Initialization Service (Sets up default tenant)
+echo - FastAPI Backend (Multi-tenant API with JWT auth)
+echo - React Frontend (Single-domain multi-tenant UI)
 echo.
-echo Building containers with layer caching (faster after first build)...
+echo Building containers with layer caching...
 
 %COMPOSE_CMD% down
 %COMPOSE_CMD% build --parallel
 %COMPOSE_CMD% up -d
 
 echo.
-echo [6/6] Waiting for services to initialize...
-echo Checking service health...
+echo [6/6] Waiting for multi-tenant services to initialize...
+echo Checking database initialization and service health...
 
 :wait_loop
 timeout /t 5 /nobreak >nul
-echo Checking if services are ready...
+echo Checking if multi-tenant services are ready...
 
 REM Check if backend is responding
 curl -s http://localhost:8000/health >nul 2>&1
@@ -88,32 +89,42 @@ goto wait_loop
 :services_ready
 echo.
 echo ==========================================
-echo    AgentCores MVP Started Successfully!
+echo   AgentCores Multi-Tenant Started!
 echo ==========================================
 echo.
-echo 🎯 Access your application:
+echo 🎯 Access your multi-tenant application:
 echo.
-echo Frontend Dashboard: http://localhost:3000 (Hot Reload Enabled)
-echo Backend API Docs:   http://localhost:8000/docs (Hot Reload Enabled)
+echo Frontend Dashboard: http://localhost:3000
+echo Backend API Docs:   http://localhost:8000/docs
 echo Interactive API:    http://localhost:8000/redoc
 echo Health Check:       http://localhost:8000/health
 echo.
+echo 🏢 Default Organization Login:
+echo Organization: AgentCores Demo
+echo Email:        admin@demo.agentcores.com
+echo Password:     admin123
+echo Role:         Owner (Full Access)
+echo.
+echo ⚠️  IMPORTANT: Change the default password after first login!
+echo.
 echo 📊 Database Access:
-echo PostgreSQL: localhost:5432
+echo PostgreSQL: localhost:5432 (Multi-tenant with row-level security)
 echo Redis: localhost:6379
 echo.
-echo � HOT RELOAD ACTIVE:
-echo - Frontend: Code changes auto-refresh browser
-echo - Backend: Code changes auto-restart server
-echo - NO rebuild needed for code changes!
+echo 🔒 Multi-Tenant Features Active:
+echo - Complete organization isolation
+echo - Role-based access control
+echo - JWT authentication with tenant context
+echo - Single-domain architecture
+echo - Enterprise-grade security
 echo.
-echo �🔧 Useful Docker commands:
+echo 🔧 Useful Docker commands:
 echo   View logs:     %COMPOSE_CMD% logs -f
 echo   Stop services: %COMPOSE_CMD% down
 echo   Restart:       %COMPOSE_CMD% restart [service]
-echo   Quick rebuild: %COMPOSE_CMD% build --parallel
+echo   Clean start:   clean-docker.bat
 echo.
-echo Opening frontend dashboard in browser...
+echo Opening multi-tenant dashboard in browser...
 timeout /t 3 /nobreak >nul
 start http://localhost:3000
 

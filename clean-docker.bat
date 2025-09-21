@@ -1,7 +1,7 @@
 @echo off
 REM filepath: clean-docker.bat
 echo ==========================================
-echo    AgentCores MVP - Docker Clean Slate
+echo  AgentCores Multi-Tenant - Clean Slate
 echo ==========================================
 
 cd /d "D:\Projects\get-github-user-details-master\AgentCores"
@@ -12,9 +12,15 @@ echo.
 echo This will delete:
 echo - All containers (running and stopped)
 echo - All images for this project
-echo - All volumes (DATABASE DATA WILL BE LOST!)
+echo - All volumes (MULTI-TENANT DATABASE DATA WILL BE LOST!)
 echo - All networks
 echo - Build cache
+echo.
+echo 🏢 This includes ALL organization data:
+echo - All tenants/organizations
+echo - All users (including admin accounts)
+echo - All agents and tasks
+echo - All audit logs
 echo.
 echo Your source code will NOT be affected.
 echo.
@@ -35,7 +41,7 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [1/6] Stopping all containers...
+echo [1/6] Stopping all multi-tenant containers...
 %COMPOSE_CMD% down --remove-orphans
 
 echo.
@@ -57,7 +63,7 @@ for /f "tokens=*" %%i in ('docker images --format "table {{.Repository}}:{{.Tag}
 )
 
 echo.
-echo [4/6] Removing all volumes (DATA WILL BE LOST!)...
+echo [4/6] Removing all volumes (MULTI-TENANT DATA WILL BE LOST!)...
 docker volume prune -f 2>nul
 REM Specifically remove project volumes
 docker volume rm agentcores_postgres_data 2>nul
@@ -73,21 +79,23 @@ docker system prune -af --volumes 2>nul
 
 echo.
 echo ==========================================
-echo    Docker Clean Slate Complete!
+echo   Multi-Tenant Clean Slate Complete!
 echo ==========================================
 echo.
 echo ✅ All containers removed
 echo ✅ All project images removed  
-echo ✅ All volumes removed (data deleted)
+echo ✅ All volumes removed (ALL organization data deleted)
 echo ✅ All networks cleaned
 echo ✅ Build cache cleared
 echo.
-echo 🚀 Ready for fresh start!
+echo 🚀 Ready for fresh multi-tenant start!
 echo.
 echo Next steps:
 echo 1. Run: start-app-docker.bat
 echo 2. This will rebuild everything from scratch
-echo 3. Create your agents and tasks again
+echo 3. Database will be auto-initialized with default tenant
+echo 4. Login with: Organization="AgentCores Demo", Email="admin@demo.agentcores.com", Password="admin123"
+echo 5. Create your organizations, agents and tasks again
 echo.
 echo Note: First build will take 5-10 minutes since everything
 echo is rebuilt, but subsequent code changes will be fast!

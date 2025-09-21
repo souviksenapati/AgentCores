@@ -35,6 +35,12 @@ ENV/
 .env.test.local
 .env.production.local
 
+# Test files created during development
+*.json.test
+test_*.json
+test_*.ps1
+login_test.json
+
 # Database
 *.db
 *.sqlite3
@@ -81,6 +87,8 @@ dist/
 # Docker
 .dockerignore
 docker-compose.override.yml
+docker-compose.prod.yml
+docker-compose.local.yml
 
 # Temporary files
 *.tmp

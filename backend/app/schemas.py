@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
@@ -16,6 +16,25 @@ class TaskStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+# Multi-tenant enums
+class TenantStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TRIAL = "trial"
+    EXPIRED = "expired"
+    PENDING = "pending"
+
+class SubscriptionTier(str, Enum):
+    FREE = "free"
+    BASIC = "basic"
+    PROFESSIONAL = "professional"
+    ENTERPRISE = "enterprise"
+
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
 
 # Agent Schemas
 class AgentBase(BaseModel):
@@ -123,3 +142,103 @@ class HealthCheck(BaseModel):
     status: str
     timestamp: datetime
     version: str = "1.0.0"
+
+# Authentication Schemas
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    tenant_name: str = Field(..., min_length=1, description="Organization name")
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    tenant_name: str = Field(..., min_length=1, description="Organization name")
+
+class UserInviteAccept(BaseModel):
+    token: str
+    password: str = Field(..., min_length=8)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+# User Schemas
+class UserBase(BaseModel):
+    email: EmailStr
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    role: UserRole
+
+class UserResponse(UserBase):
+    id: str
+    tenant_id: str
+    is_active: bool
+    is_email_verified: bool
+    last_login: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+class UserInvite(BaseModel):
+    email: EmailStr
+    role: UserRole = UserRole.MEMBER
+
+# Tenant Schemas
+class TenantCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    contact_email: EmailStr
+    contact_name: str = Field(..., min_length=1, max_length=255)
+    subscription_tier: SubscriptionTier = SubscriptionTier.FREE
+
+class TenantResponse(BaseModel):
+    id: str
+    name: str
+    status: TenantStatus
+    subscription_tier: SubscriptionTier
+    max_agents: int
+    max_tasks_per_month: int
+    max_storage_mb: int
+    max_users: int
+    trial_end: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class TenantUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    contact_email: Optional[EmailStr] = None
+    contact_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    settings: Optional[Dict[str, Any]] = None
+
+# Invitation Schemas
+class InvitationResponse(BaseModel):
+    id: str
+    email: EmailStr
+    role: UserRole
+    status: str
+    expires_at: datetime
+    created_at: datetime
+    invited_by: Optional[UserResponse] = None
+
+    class Config:
+        from_attributes = True
+
+# Token Response - Defined after UserResponse and TenantResponse to avoid forward reference issues
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserResponse
+    tenant: TenantResponse

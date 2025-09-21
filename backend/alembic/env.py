@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+import os
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -23,6 +24,10 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+# Set database URL from environment if available
+database_url = os.getenv('DATABASE_URL', 'postgresql://agent_user:agent_password@localhost:5432/agentcores_db')
+config.set_main_option('sqlalchemy.url', database_url)
 
 
 def run_migrations_offline() -> None:

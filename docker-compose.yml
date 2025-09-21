@@ -10,7 +10,6 @@ services:
       POSTGRES_PASSWORD: agent_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -32,6 +31,21 @@ services:
       timeout: 10s
       retries: 3
 
+  # Database initialization
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://agent_user:agent_password@postgres:5432/agentcores_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python setup_database.py
+    restart: "no"
+
   # Backend API
   backend:
     build:
@@ -49,6 +63,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     volumes:
       # Mount source code for hot reload (excludes venv to prevent conflicts)
       - ./backend:/app
