@@ -1,4 +1,6 @@
 @echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
 REM filepath: check-status-docker.bat
 echo ==========================================
 echo  AgentCores Multi-Tenant - Service Status
@@ -15,7 +17,7 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo 📋 Checking multi-tenant Docker services status...
+echo [INFO] Checking multi-tenant Docker services status...
 echo.
 
 %COMPOSE_CMD% ps
@@ -26,39 +28,39 @@ echo     Multi-Tenant Service Health Checks
 echo ==========================================
 echo.
 
-echo 🔍 Testing Backend API (multi-tenant auth)...
-curl -s http://localhost:8000/health >nul 2>&1
-if %errorlevel% equ 0 (
-    echo ✅ Backend API: HEALTHY (Multi-tenant auth ready)
+echo [TEST] Testing Backend API (multi-tenant auth)...
+powershell -Command "try { $r = Invoke-WebRequest 'http://localhost:8000/health' -UseBasicParsing -TimeoutSec 5; exit 0 } catch { exit 1 }" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [PASS] Backend API: HEALTHY ^(Multi-tenant auth ready^)
 ) else (
-    echo ❌ Backend API: NOT RESPONDING
+    echo [FAIL] Backend API: NOT RESPONDING
 )
 
 echo.
-echo 🔍 Testing Frontend (organization login)...
-curl -s http://localhost:3000 >nul 2>&1
-if %errorlevel% equ 0 (
-    echo ✅ Frontend: HEALTHY (Single-domain multi-tenant)
+echo [TEST] Testing Frontend (organization login)...
+powershell -Command "try { $r = Invoke-WebRequest 'http://localhost:3000' -UseBasicParsing -TimeoutSec 5; exit 0 } catch { exit 1 }" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [PASS] Frontend: HEALTHY ^(Single-domain multi-tenant^)
 ) else (
-    echo ❌ Frontend: NOT RESPONDING
+    echo [FAIL] Frontend: NOT RESPONDING
 )
 
 echo.
-echo 🔍 Testing Database (tenant isolation)...
-docker exec agentcores_postgres_1 pg_isready -U agent_user >nul 2>&1
-if %errorlevel% equ 0 (
-    echo ✅ PostgreSQL: HEALTHY (Multi-tenant models ready)
+echo [TEST] Testing Database (tenant isolation)...
+docker exec agentcores-postgres-1 pg_isready -U agent_user >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [PASS] PostgreSQL: HEALTHY ^(Multi-tenant models ready^)
 ) else (
-    echo ❌ PostgreSQL: NOT RESPONDING
+    echo [FAIL] PostgreSQL: NOT RESPONDING
 )
 
 echo.
-echo 🔍 Testing Redis (session management)...
-docker exec agentcores_redis_1 redis-cli ping >nul 2>&1
-if %errorlevel% equ 0 (
-    echo ✅ Redis: HEALTHY (Session storage ready)
+echo [TEST] Testing Redis (session management)...
+docker exec agentcores-redis-1 redis-cli ping >nul 2>&1
+if !errorlevel! equ 0 (
+    echo [PASS] Redis: HEALTHY ^(Session storage ready^)
 ) else (
-    echo ❌ Redis: NOT RESPONDING
+    echo [FAIL] Redis: NOT RESPONDING
 )
 
 echo.
@@ -66,16 +68,16 @@ echo ==========================================
 echo      Multi-Tenant Quick Access
 echo ==========================================
 echo.
-echo 🌐 Frontend Dashboard: http://localhost:3000/app
-echo 📚 Backend API Docs:   http://localhost:8000/docs
-echo 🔍 Health Check:       http://localhost:8000/health
+echo Frontend Dashboard: http://localhost:3000/app
+echo Backend API Docs:   http://localhost:8000/docs
+echo Health Check:       http://localhost:8000/health
 echo.
-echo 🏢 Default Organization Login:
+echo Default Organization Login:
 echo    Organization: "AgentCores Demo"
 echo    Email: "admin@demo.agentcores.com" 
 echo    Password: "admin123"
 echo.
-echo 💡 Create new organizations and invite users!
-echo    Each organization has complete tenant isolation.
+echo Create new organizations and invite users!
+echo Each organization has complete tenant isolation.
 echo.
 pause

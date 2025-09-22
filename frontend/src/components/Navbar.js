@@ -11,9 +11,6 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 const Navbar = () => {
   const location = useLocation();
-  
-  // Debug log to ensure component is loading
-  console.log('Navbar component loaded with AgentCores branding');
 
   const navItems = [
     { path: '/', label: 'Dashboard' },

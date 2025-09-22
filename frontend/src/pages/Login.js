@@ -43,7 +43,7 @@ const Login = () => {
       const authData = response.data;
       
       login(authData);
-      navigate('/');
+      navigate('/dashboard'); // Redirect to dashboard instead of landing page
     } catch (error) {
       console.error('Login error:', error);
       setError(

@@ -1,3 +1,8 @@
+"""
+Enterprise Database Configuration & Connection Management
+Built for MVP simplicity, designed for billion-dollar platform scale.
+"""
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -6,18 +11,199 @@ import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from passlib.context import CryptContext
+from typing import Optional, Dict, Any
+import logging
 
+# Load environment variables
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://agent_user:agent_password@localhost:5432/agentcores_db")
+logger = logging.getLogger(__name__)
 
-# Create SQLAlchemy engine
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=os.getenv("ENVIRONMENT") == "development"
-)
+
+class EnterpriseConfig:
+    """
+    Enterprise Configuration Management
+    
+    Current: Environment-based configuration
+    Future: Dynamic configuration, secrets management, feature flags
+    """
+    
+    # Environment & Deployment
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Application
+    APP_NAME: str = os.getenv("APP_NAME", "AgentCores")
+    APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0")
+    APP_DESCRIPTION: str = os.getenv("APP_DESCRIPTION", "AI Agent Orchestration Platform")
+    
+    # Server
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("PORT", "8000"))
+    WORKERS: int = int(os.getenv("WORKERS", "4"))
+    
+    # Database
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://agent_user:agent_password@localhost:5432/agentcores_db")
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "30"))
+    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "3600"))
+    
+    # Redis
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_POOL_SIZE: int = int(os.getenv("REDIS_POOL_SIZE", "20"))
+    
+    # Security
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-jwt-key-change-in-production")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+    REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+    
+    # CORS & Security Headers
+    ALLOWED_HOSTS: list = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    CORS_CREDENTIALS: bool = os.getenv("CORS_CREDENTIALS", "true").lower() == "true"
+    
+    # Rate Limiting
+    RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "100"))
+    RATE_LIMIT_BURST: int = int(os.getenv("RATE_LIMIT_BURST", "200"))
+    
+    # AI Providers
+    OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
+    OPENROUTER_SITE_URL: str = os.getenv("OPENROUTER_SITE_URL", "https://agentcores.com")
+    OPENROUTER_SITE_NAME: str = os.getenv("OPENROUTER_SITE_NAME", "AgentCores")
+    
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_ORG_ID: Optional[str] = os.getenv("OPENAI_ORG_ID")
+    
+    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+    
+    # Multi-tenancy
+    DEFAULT_TENANT_ID: str = os.getenv("DEFAULT_TENANT_ID", "default")
+    DEFAULT_TENANT_NAME: str = os.getenv("DEFAULT_TENANT_NAME", "Default Organization")
+    DEFAULT_MAX_AGENTS: int = int(os.getenv("DEFAULT_MAX_AGENTS", "10"))
+    DEFAULT_MAX_TASKS_PER_HOUR: int = int(os.getenv("DEFAULT_MAX_TASKS_PER_HOUR", "1000"))
+    DEFAULT_MAX_MONTHLY_COST: float = float(os.getenv("DEFAULT_MAX_MONTHLY_COST", "1000.0"))
+    
+    # Task Execution
+    MAX_CONCURRENT_TASKS: int = int(os.getenv("MAX_CONCURRENT_TASKS", "10"))
+    TASK_TIMEOUT_SECONDS: int = int(os.getenv("TASK_TIMEOUT_SECONDS", "300"))
+    MAX_TASK_RETRIES: int = int(os.getenv("MAX_TASK_RETRIES", "3"))
+    TASK_CLEANUP_INTERVAL_MINUTES: int = int(os.getenv("TASK_CLEANUP_INTERVAL_MINUTES", "60"))
+    
+    # Event Service
+    EVENT_STORE_ENABLED: bool = os.getenv("EVENT_STORE_ENABLED", "true").lower() == "true"
+    EVENT_STORE_MAX_EVENTS: int = int(os.getenv("EVENT_STORE_MAX_EVENTS", "10000"))
+    EVENT_RETENTION_HOURS: int = int(os.getenv("EVENT_RETENTION_HOURS", "168"))
+    EVENT_ASYNC_PROCESSING: bool = os.getenv("EVENT_ASYNC_PROCESSING", "true").lower() == "true"
+    
+    # Monitoring
+    METRICS_ENABLED: bool = os.getenv("METRICS_ENABLED", "true").lower() == "true"
+    PROMETHEUS_PORT: int = int(os.getenv("PROMETHEUS_PORT", "9090"))
+    HEALTH_CHECK_ENABLED: bool = os.getenv("HEALTH_CHECK_ENABLED", "true").lower() == "true"
+    HEALTH_CHECK_INTERVAL: int = int(os.getenv("HEALTH_CHECK_INTERVAL", "60"))
+    
+    # Enterprise Features
+    COMPLIANCE_MODE: str = os.getenv("COMPLIANCE_MODE", "basic")
+    AUDIT_LOGGING: bool = os.getenv("AUDIT_LOGGING", "true").lower() == "true"
+    DATA_ENCRYPTION_AT_REST: bool = os.getenv("DATA_ENCRYPTION_AT_REST", "false").lower() == "true"
+    
+    # Feature Flags
+    FEATURE_MULTI_TENANCY: bool = os.getenv("FEATURE_MULTI_TENANCY", "true").lower() == "true"
+    FEATURE_ANALYTICS: bool = os.getenv("FEATURE_ANALYTICS", "true").lower() == "true"
+    FEATURE_ADVANCED_TEMPLATES: bool = os.getenv("FEATURE_ADVANCED_TEMPLATES", "true").lower() == "true"
+    FEATURE_MULTI_PROVIDER: bool = os.getenv("FEATURE_MULTI_PROVIDER", "true").lower() == "true"
+    FEATURE_COST_TRACKING: bool = os.getenv("FEATURE_COST_TRACKING", "true").lower() == "true"
+    
+    # Cost Management
+    MONTHLY_COST_ALERT_THRESHOLD: float = float(os.getenv("MONTHLY_COST_ALERT_THRESHOLD", "800.0"))
+    DAILY_COST_ALERT_THRESHOLD: float = float(os.getenv("DAILY_COST_ALERT_THRESHOLD", "50.0"))
+    COST_TRACKING_ENABLED: bool = os.getenv("COST_TRACKING_ENABLED", "true").lower() == "true"
+    
+    @classmethod
+    def is_production(cls) -> bool:
+        """Check if running in production environment"""
+        return cls.ENVIRONMENT.lower() == "production"
+    
+    @classmethod
+    def is_development(cls) -> bool:
+        """Check if running in development environment"""
+        return cls.ENVIRONMENT.lower() == "development"
+    
+    @classmethod
+    def get_database_config(cls) -> Dict[str, Any]:
+        """Get database configuration for SQLAlchemy"""
+        config = {
+            "url": cls.DATABASE_URL,
+            "pool_size": cls.DB_POOL_SIZE,
+            "max_overflow": cls.DB_MAX_OVERFLOW,
+            "pool_timeout": cls.DB_POOL_TIMEOUT,
+            "pool_recycle": cls.DB_POOL_RECYCLE,
+            "pool_pre_ping": True,
+            "echo": cls.DEBUG,
+        }
+        
+        # Enterprise: Add SSL configuration for production
+        if cls.is_production():
+            config["connect_args"] = {"sslmode": "require"}
+        
+        return config
+    
+    @classmethod
+    def get_cors_config(cls) -> Dict[str, Any]:
+        """Get CORS configuration"""
+        return {
+            "allow_origins": cls.CORS_ORIGINS,
+            "allow_credentials": cls.CORS_CREDENTIALS,
+            "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+            "allow_headers": ["*"],
+            "expose_headers": ["X-Tenant-ID", "X-Request-ID"],
+        }
+    
+    @classmethod
+    def validate_configuration(cls) -> Dict[str, Any]:
+        """Validate enterprise configuration"""
+        issues = []
+        warnings = []
+        
+        # Critical validations
+        if not cls.SECRET_KEY or cls.SECRET_KEY == "your-super-secret-jwt-key-change-in-production":
+            issues.append("SECRET_KEY must be set to a secure value in production")
+        
+        if cls.is_production() and cls.DEBUG:
+            issues.append("DEBUG should be False in production")
+        
+        if not cls.OPENROUTER_API_KEY and not cls.OPENAI_API_KEY and not cls.ANTHROPIC_API_KEY:
+            issues.append("At least one AI provider API key must be configured")
+        
+        # Warnings
+        if cls.ACCESS_TOKEN_EXPIRE_MINUTES > 1440:  # 24 hours
+            warnings.append("ACCESS_TOKEN_EXPIRE_MINUTES is very long, consider shorter duration")
+        
+        if not cls.FEATURE_COST_TRACKING:
+            warnings.append("Cost tracking is disabled - consider enabling for enterprise use")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "warnings": warnings,
+            "environment": cls.ENVIRONMENT,
+            "features_enabled": {
+                "multi_tenancy": cls.FEATURE_MULTI_TENANCY,
+                "analytics": cls.FEATURE_ANALYTICS,
+                "cost_tracking": cls.FEATURE_COST_TRACKING,
+                "multi_provider": cls.FEATURE_MULTI_PROVIDER,
+            }
+        }
+
+
+# Initialize configuration
+config = EnterpriseConfig()
+
+# Create enterprise database engine
+db_config = config.get_database_config()
+engine = create_engine(**db_config)
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -39,21 +225,34 @@ def get_db():
     finally:
         db.close()
 
+
 def init_database():
     """Initialize database with tables and default data"""
-    print("🔧 Initializing multi-tenant database...")
+    print("🔧 Initializing enterprise multi-tenant database...")
+    
+    # Validate configuration first
+    validation = config.validate_configuration()
+    if not validation["valid"]:
+        print("❌ Configuration validation failed:")
+        for issue in validation["issues"]:
+            print(f"   • {issue}")
+        raise RuntimeError("Invalid configuration")
+    
+    if validation["warnings"]:
+        print("⚠️  Configuration warnings:")
+        for warning in validation["warnings"]:
+            print(f"   • {warning}")
     
     # Import models to ensure they're registered with Base
     from app.models.database import (
-        Tenant, User, Agent, Task, TaskExecution, 
-        TenantInvitation, AuditLog
+        Tenant, Agent, Task, Template, Event
     )
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created")
+    print("✅ Enterprise database tables created")
     
-    # Create default tenant and admin user
+    # Create default tenant and data
     db = SessionLocal()
     try:
         # Check if we already have data
@@ -62,51 +261,73 @@ def init_database():
             print("ℹ️  Database already has data, skipping initialization")
             return
         
-        # Generate IDs
-        tenant_id = str(uuid.uuid4())
-        admin_id = str(uuid.uuid4())
-        
-        # Create default tenant (using correct column names from the model)
+        # Create default tenant
+        tenant_id = config.DEFAULT_TENANT_ID
         db.execute(text("""
-            INSERT INTO tenants (id, name, subdomain, subscription_tier, contact_email, contact_name, status, created_at, updated_at)
-            VALUES (:tenant_id, 'AgentCores Demo', 'demo', 'PROFESSIONAL', 'admin@demo.agentcores.com', 'Demo Admin', 'ACTIVE', :now, :now)
+            INSERT INTO tenants (
+                tenant_id, name, description, status, tier, compliance_level,
+                max_agents, max_tasks_per_hour, max_monthly_cost,
+                billing_plan, created_at, updated_at
+            )
+            VALUES (
+                :tenant_id, :name, :description, 'active', 'basic', 'basic',
+                :max_agents, :max_tasks_per_hour, :max_monthly_cost,
+                'pay_as_you_go', :now, :now
+            )
         """), {
             'tenant_id': tenant_id,
+            'name': config.DEFAULT_TENANT_NAME,
+            'description': 'Default tenant for AgentCores MVP',
+            'max_agents': config.DEFAULT_MAX_AGENTS,
+            'max_tasks_per_hour': config.DEFAULT_MAX_TASKS_PER_HOUR,
+            'max_monthly_cost': config.DEFAULT_MAX_MONTHLY_COST,
             'now': datetime.utcnow()
         })
         
-        # Create admin user (using correct column names from the model)
-        password_hash = get_password_hash("admin123")
-        db.execute(text("""
-            INSERT INTO users (id, tenant_id, email, first_name, last_name, password_hash, role, is_active, created_at, updated_at)
-            VALUES (:user_id, :tenant_id, 'admin@demo.agentcores.com', 'Demo', 'Administrator', :password_hash, 'ADMIN', true, :now, :now)
-        """), {
-            'user_id': admin_id,
-            'tenant_id': tenant_id,
-            'password_hash': password_hash,
-            'now': datetime.utcnow()
-        })
+        # Create default templates
+        templates = [
+            {
+                'template_id': 'customer_service_basic',
+                'name': 'Customer Service Assistant',
+                'description': 'AI agent for handling customer inquiries and support',
+                'industry': 'customer_service',
+                'category': 'conversational',
+                'config': '{"model": "anthropic/claude-3-haiku", "temperature": 0.7, "max_tokens": 1000}',
+                'approved_for_production': True,
+                'created_by': 'system'
+            },
+            {
+                'template_id': 'sales_assistant_basic',
+                'name': 'Sales Assistant',
+                'description': 'AI agent for sales support and lead qualification',
+                'industry': 'sales',
+                'category': 'conversational',
+                'config': '{"model": "anthropic/claude-3-sonnet", "temperature": 0.8, "max_tokens": 1200}',
+                'approved_for_production': True,
+                'created_by': 'system'
+            }
+        ]
         
-        # Create audit log entry
-        log_id = str(uuid.uuid4())
-        db.execute(text("""
-            INSERT INTO audit_logs (id, tenant_id, user_id, action, resource_type, resource_id, timestamp)
-            VALUES (:log_id, :tenant_id, :admin_id, 'SYSTEM_INIT', 'DATABASE', 'system', :now)
-        """), {
-            'log_id': log_id,
-            'tenant_id': tenant_id,
-            'admin_id': admin_id,
-            'now': datetime.utcnow()
-        })
+        for template in templates:
+            db.execute(text("""
+                INSERT INTO templates (
+                    template_id, name, description, industry, category, config,
+                    approved_for_production, created_by, created_at, updated_at
+                )
+                VALUES (
+                    :template_id, :name, :description, :industry, :category, :config,
+                    :approved_for_production, :created_by, :now, :now
+                )
+            """), {**template, 'now': datetime.utcnow()})
         
         db.commit()
         
-        print("✅ Default tenant and admin user created")
-        print("   Organization: AgentCores Demo")
-        print("   Subdomain: demo")  
-        print("   Email: admin@demo.agentcores.com")
-        print("   Password: admin123")
-        print("   ⚠️  Change password after first login!")
+        print("✅ Enterprise initialization complete")
+        print(f"   Default Tenant: {config.DEFAULT_TENANT_NAME}")
+        print(f"   Tenant ID: {tenant_id}")
+        print(f"   Environment: {config.ENVIRONMENT}")
+        print(f"   Features: {list(validation['features_enabled'].keys())}")
+        print("   📋 Default templates created")
         
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
@@ -114,3 +335,34 @@ def init_database():
         raise
     finally:
         db.close()
+
+
+# Global configuration instance
+DATABASE_URL = config.DATABASE_URL
+
+
+def validate_startup_configuration():
+    """Validate startup configuration for Docker deployment"""
+    try:
+        config = EnterpriseConfig()
+        
+        # Basic validation
+        required_settings = ['DATABASE_URL', 'SECRET_KEY']
+        missing = [setting for setting in required_settings if not getattr(config, setting, None)]
+        
+        if missing:
+            raise ValueError(f"Missing required configuration: {', '.join(missing)}")
+        
+        # Test database connection
+        engine = create_engine(config.DATABASE_URL)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        
+        print("✅ Startup configuration validated")
+        print(f"   Environment: {config.ENVIRONMENT}")
+        print(f"   Database: Connected")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Startup validation failed: {e}")
+        raise

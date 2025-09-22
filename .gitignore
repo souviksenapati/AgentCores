@@ -131,6 +131,16 @@ redis_data/
 htmlcov/
 test-results/
 coverage/
+test_*.py
+
+# Generated documentation files
+PROJECT_STRUCTURE.md
+SYSTEM_HEALTH_REPORT.md
+PRODUCTION_GUIDE.md
+
+# Development/temporary files
+Agent Cores.txt
+pyrightconfig.json
 
 # Production secrets
 secrets/
