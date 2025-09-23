@@ -19,6 +19,8 @@ const Navigation = () => {
   const { user, tenant, logout } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
+  // Hide this top nav when a user is logged in to avoid duplication with AppLayout
+  if (user) return null;
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);

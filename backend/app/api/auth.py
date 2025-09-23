@@ -1,223 +1,144 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel, EmailStr
+from datetime import timedelta
 
 from app.database import get_db
-from app.schemas import (
-    UserLogin, UserRegister, UserInviteAccept, TokenResponse, RefreshTokenRequest,
-    UserResponse, UserUpdate, UserInvite, TenantCreate, TenantResponse, TenantUpdate,
-    InvitationResponse
+from app.auth import (
+    authenticate_user, create_access_token, get_current_user, get_password_hash,
+    get_tenant_id, require_admin_role, require_manager_role, ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from app.services.agent_service import AuthService, TenantService
-from app.auth import get_current_user, get_tenant_id, require_admin_role, require_admin_or_member_role
-from app.models.database import User
-from datetime import timedelta
+from app.models.database import User, Tenant, UserRole
+from app.services import UserService, TenantService, SecurityService, InvitationService
 
 router = APIRouter()
 
+# Pydantic Models
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+    tenant_name: Optional[str] = None
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: dict
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    role: str
+    tenant_id: str
+    is_active: bool
+    last_login: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+class UserInvite(BaseModel):
+    email: EmailStr
+    role: UserRole
+
 # Authentication Endpoints
-@router.post("/auth/register", response_model=TokenResponse, status_code=201)
-async def register(
-    user_data: UserRegister,
-    db: Session = Depends(get_db)
-):
-    """Register a new user account"""
-    try:
-        # Get tenant by name instead of subdomain
-        tenant_service = TenantService(db)
-        tenant = await tenant_service.get_tenant_by_name(user_data.tenant_name)
-        
-        if not tenant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Organization '{user_data.tenant_name}' not found"
-            )
-        
-        # Register user
-        auth_service = AuthService(db)
-        user = await auth_service.register_user(
-            email=user_data.email,
-            password=user_data.password,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            tenant_id=tenant.id
-        )
-        
-        # Generate tokens
-        access_token = auth_service.create_access_token(
-            data={"sub": user.id, "tenant_id": tenant.id, "role": user.role.value}
-        )
-        refresh_token = auth_service.create_refresh_token(
-            data={"sub": user.id, "tenant_id": tenant.id}
-        )
-        
-        return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=1800,  # 30 minutes
-            user=UserResponse.model_validate(user),
-            tenant=TenantResponse.model_validate(tenant)
-        )
-        
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-@router.post("/auth/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=LoginResponse)
 async def login(
-    login_data: UserLogin,
+    login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
-    """Authenticate user and return tokens"""
-    auth_service = AuthService(db)
-    user = await auth_service.authenticate_user(
-        email=login_data.email,
-        password=login_data.password,
-        tenant_name=login_data.tenant_name
-    )
+    """Authenticate user and return access token"""
+    user = authenticate_user(db, login_data.email, login_data.password)
     
     if not user:
+        # Log failed login attempt
+        SecurityService.log_security_event(
+            db=db,
+            tenant_id="unknown",
+            event_type="failed_login",
+            severity="warning",
+            event_data={
+                "attempted_email": login_data.email,
+                "failure_reason": "invalid_credentials"
+            },
+            result="denied",
+            risk_score=30
+        )
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email, password, or organization"
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Get tenant info
-    tenant_service = TenantService(db)
-    tenant = await tenant_service.get_tenant_by_name(login_data.tenant_name)
-    
-    # Generate tokens
-    access_token = auth_service.create_access_token(
-        data={"sub": user.id, "tenant_id": user.tenant_id, "role": user.role.value}
-    )
-    refresh_token = auth_service.create_refresh_token(
-        data={"sub": user.id, "tenant_id": user.tenant_id}
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.id}, expires_delta=access_token_expires
     )
     
-    return TokenResponse(
+    # Update last login
+    from datetime import datetime
+    user.last_login = datetime.utcnow()
+    db.commit()
+    
+    # Log successful login
+    SecurityService.log_security_event(
+        db=db,
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        event_type="login",
+        severity="info",
+        event_data={
+            "login_method": "password",
+            "user_role": user.role.value
+        },
+        result="success",
+        risk_score=5
+    )
+    
+    return LoginResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=1800,  # 30 minutes
-        user=UserResponse.model_validate(user),
-        tenant=TenantResponse.model_validate(tenant)
-    )
-
-@router.post("/auth/refresh", response_model=TokenResponse)
-async def refresh_token(
-    refresh_data: RefreshTokenRequest,
-    db: Session = Depends(get_db)
-):
-    """Refresh access token"""
-    auth_service = AuthService(db)
-    payload = auth_service.verify_token(refresh_data.refresh_token)
-    
-    if not payload or payload.get("type") != "refresh":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
-        )
-    
-    user_id = payload.get("sub")
-    tenant_id = payload.get("tenant_id")
-    
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.tenant_id == tenant_id,
-        User.is_active == True
-    ).first()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive"
-        )
-    
-    # Generate new tokens
-    access_token = auth_service.create_access_token(
-        data={"sub": user.id, "tenant_id": user.tenant_id, "role": user.role.value}
-    )
-    refresh_token = auth_service.create_refresh_token(
-        data={"sub": user.id, "tenant_id": user.tenant_id}
-    )
-    
-    # Get tenant info
-    tenant = db.query(User).join(User.tenant).filter(User.id == user_id).first().tenant
-    
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=1800,  # 30 minutes
-        user=UserResponse.model_validate(user),
-        tenant=TenantResponse.model_validate(tenant)
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user={
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "role": user.role.value,
+            "tenant_id": user.tenant_id,
+            "is_active": user.is_active,
+            "last_login": user.last_login.isoformat() if user.last_login else None
+        }
     )
 
 @router.post("/auth/logout", status_code=204)
 async def logout(
-    current_user: User = Depends(get_current_user)
-):
-    """Logout user (client should discard tokens)"""
-    # In a full implementation, you would blacklist the token
-    # For now, just return success - client should discard tokens
-    return
-
-# Tenant Management Endpoints
-@router.post("/tenants", response_model=TenantResponse, status_code=201)
-async def create_tenant(
-    tenant_data: TenantCreate,
-    db: Session = Depends(get_db)
-):
-    """Create a new tenant (public endpoint for tenant registration)"""
-    try:
-        tenant_service = TenantService(db)
-        tenant = await tenant_service.create_tenant(
-            name=tenant_data.name,
-            contact_email=tenant_data.contact_email,
-            contact_name=tenant_data.contact_name,
-            subscription_tier=tenant_data.subscription_tier.value
-        )
-        
-        return TenantResponse.model_validate(tenant)
-        
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-@router.get("/tenant", response_model=TenantResponse)
-async def get_current_tenant(
-    tenant_id: str = Depends(get_tenant_id),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get current tenant information"""
-    from app.models.database import Tenant
+    """Logout user (client should discard tokens)"""
+    # Log logout event
+    SecurityService.log_security_event(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        event_type="logout",
+        severity="info",
+        event_data={
+            "user_role": current_user.role.value
+        },
+        result="success",
+        risk_score=5
+    )
     
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-    
-    return TenantResponse.model_validate(tenant)
-
-@router.put("/tenant", response_model=TenantResponse)
-async def update_tenant(
-    tenant_data: TenantUpdate,
-    tenant_id: str = Depends(get_tenant_id),
-    current_user: User = Depends(require_admin_role),
-    db: Session = Depends(get_db)
-):
-    """Update tenant information (admin only)"""
-    from app.models.database import Tenant
-    
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-    
-    # Update tenant fields
-    update_data = tenant_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(tenant, field, value)
-    
-    db.commit()
-    db.refresh(tenant)
-    
-    return TenantResponse.model_validate(tenant)
+    return
 
 # User Management Endpoints
 @router.get("/users", response_model=List[UserResponse])
@@ -232,14 +153,34 @@ async def get_users(
         User.is_active == True
     ).all()
     
-    return [UserResponse.model_validate(user) for user in users]
+    return [
+        UserResponse(
+            id=user.id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            role=user.role.value,
+            tenant_id=user.tenant_id,
+            is_active=user.is_active,
+            last_login=user.last_login.isoformat() if user.last_login else None
+        ) for user in users
+    ]
 
 @router.get("/users/me", response_model=UserResponse)
 async def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
     """Get current user information"""
-    return UserResponse.model_validate(current_user)
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        role=current_user.role.value,
+        tenant_id=current_user.tenant_id,
+        is_active=current_user.is_active,
+        last_login=current_user.last_login.isoformat() if current_user.last_login else None
+    )
 
 @router.put("/users/me", response_model=UserResponse)
 async def update_current_user(
@@ -249,16 +190,24 @@ async def update_current_user(
 ):
     """Update current user information"""
     # Users can only update their own name, not role or active status
-    allowed_fields = {"first_name", "last_name"}
-    update_data = {k: v for k, v in user_data.model_dump(exclude_unset=True).items() if k in allowed_fields}
-    
-    for field, value in update_data.items():
-        setattr(current_user, field, value)
+    if user_data.first_name is not None:
+        current_user.first_name = user_data.first_name
+    if user_data.last_name is not None:
+        current_user.last_name = user_data.last_name
     
     db.commit()
     db.refresh(current_user)
     
-    return UserResponse.model_validate(current_user)
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        role=current_user.role.value,
+        tenant_id=current_user.tenant_id,
+        is_active=current_user.is_active,
+        last_login=current_user.last_login.isoformat() if current_user.last_login else None
+    )
 
 @router.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(
@@ -278,70 +227,55 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Admin can update all fields
-    update_data = user_data.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(user, field, value)
+    if user_data.first_name is not None:
+        user.first_name = user_data.first_name
+    if user_data.last_name is not None:
+        user.last_name = user_data.last_name
+    if user_data.role is not None:
+        user.role = user_data.role
+    if user_data.is_active is not None:
+        user.is_active = user_data.is_active
     
     db.commit()
     db.refresh(user)
     
-    return UserResponse.model_validate(user)
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        role=user.role.value,
+        tenant_id=user.tenant_id,
+        is_active=user.is_active,
+        last_login=user.last_login.isoformat() if user.last_login else None
+    )
 
 # User Invitation Endpoints
-@router.post("/invitations", response_model=InvitationResponse, status_code=201)
+@router.post("/invitations", status_code=201)
 async def invite_user(
     invitation_data: UserInvite,
     tenant_id: str = Depends(get_tenant_id),
-    current_user: User = Depends(require_admin_or_member_role),
+    current_user: User = Depends(require_manager_role),
     db: Session = Depends(get_db)
 ):
     """Invite a user to the tenant"""
     try:
-        tenant_service = TenantService(db)
-        invitation = await tenant_service.invite_user(
+        invitation = InvitationService.create_invitation(
+            db=db,
             tenant_id=tenant_id,
             email=invitation_data.email,
             role=invitation_data.role,
-            invited_by_user_id=current_user.id
+            invited_by=current_user.id
         )
         
-        return InvitationResponse.model_validate(invitation)
+        return {
+            "message": "Invitation sent successfully",
+            "invitation_id": invitation.id,
+            "email": invitation.email,
+            "role": invitation.role.value
+        }
         
-    except ValueError as e:
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-@router.post("/invitations/accept", response_model=UserResponse, status_code=201)
-async def accept_invitation(
-    acceptance_data: UserInviteAccept,
-    db: Session = Depends(get_db)
-):
-    """Accept user invitation and create account"""
-    try:
-        tenant_service = TenantService(db)
-        user = await tenant_service.accept_invitation(
-            token=acceptance_data.token,
-            password=acceptance_data.password,
-            first_name=acceptance_data.first_name,
-            last_name=acceptance_data.last_name
-        )
-        
-        return UserResponse.model_validate(user)
-        
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-@router.get("/invitations", response_model=List[InvitationResponse])
-async def get_invitations(
-    tenant_id: str = Depends(get_tenant_id),
-    current_user: User = Depends(require_admin_or_member_role),
-    db: Session = Depends(get_db)
-):
-    """Get all pending invitations for tenant"""
-    from app.models.database import TenantInvitation, InvitationStatus
-    
-    invitations = db.query(TenantInvitation).filter(
-        TenantInvitation.tenant_id == tenant_id,
-        TenantInvitation.status == InvitationStatus.PENDING
-    ).all()
-    
-    return [InvitationResponse.model_validate(invitation) for invitation in invitations]

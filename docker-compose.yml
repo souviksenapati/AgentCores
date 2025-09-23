@@ -1,5 +1,3 @@
-version: '3.8'
-
 # AgentCores Enterprise Platform - Docker Compose Configuration
 # Built for MVP simplicity, designed for billion-dollar platform scale
 

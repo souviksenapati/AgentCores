@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Container,
@@ -10,23 +10,39 @@ import {
   Alert,
   CircularProgress,
   Grid,
+  Divider,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
+import { Business, Person } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    organization_name: '',
+    contact_name: '',
+    contact_email: '',
+    subscription_tier: 'free',
     password: '',
     confirmPassword: '',
-    first_name: '',
-    last_name: '',
-    tenant_name: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [registrationComplete, setRegistrationComplete] = useState(false);
+
+  // Effect to handle navigation after successful registration and login
+  useEffect(() => {
+    if (registrationComplete && user && user.role === 'owner') {
+      console.log('Registration complete and user authenticated, navigating to dashboard');
+      navigate('/dashboard');
+    }
+  }, [registrationComplete, user, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -36,47 +52,99 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    if (!formData.organization_name || !formData.contact_name || !formData.contact_email || !formData.password) {
+      setError('Please fill in all required fields');
       return false;
     }
+
+    if (formData.organization_name.length < 2) {
+      setError('Organization name must be at least 2 characters long');
+      return false;
+    }
+
+    if (formData.contact_name.length < 2) {
+      setError('Contact name must be at least 2 characters long');
+      return false;
+    }
+
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
       return false;
     }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.contact_email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    // Password strength validation
+    const hasUpperCase = /[A-Z]/.test(formData.password);
+    const hasLowerCase = /[a-z]/.test(formData.password);
+    const hasNumbers = /\d/.test(formData.password);
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
+    
     if (!validateForm()) {
-      setLoading(false);
       return;
     }
 
+    setLoading(true);
+    setError('');
+
     try {
+      // Parse contact name into first and last name
+      const nameParts = formData.contact_name.trim().split(' ');
+      const first_name = nameParts[0] || '';
+      const last_name = nameParts.slice(1).join(' ') || '';
+
+      // Register with organization creation (user becomes the owner)
       const registrationData = {
-        email: formData.email,
+        email: formData.contact_email,
         password: formData.password,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        tenant_name: formData.tenant_name,
+        tenant_name: formData.organization_name,
+        first_name: first_name,
+        last_name: last_name,
+        role: 'owner',
+        is_organization_creation: true,
+        subscription_tier: formData.subscription_tier,
       };
 
       const response = await authAPI.register(registrationData);
       const authData = response.data;
       
-      login(authData);
-      navigate('/dashboard'); // Redirect to dashboard instead of landing page
+      // Log the user in with the returned auth data
+      await login(authData);
+      
+      // Set registration complete flag - useEffect will handle navigation
+      setRegistrationComplete(true);
     } catch (error) {
       console.error('Registration error:', error);
-      setError(
-        error.response?.data?.detail || 
-        'Registration failed. Please check your information and try again.'
-      );
+      if (error.response?.data?.detail?.includes('organization already exists')) {
+        setError('An organization with this name already exists. Please choose a different name or contact the existing organization owner for an invitation.');
+      } else if (error.response?.data?.detail?.includes('owner already exists')) {
+        setError('This organization already has an owner. Only one owner is allowed per organization.');
+      } else {
+        setError(
+          error.response?.data?.detail || 
+          error.response?.data?.error ||
+          'Registration failed. Please try again.'
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -93,13 +161,27 @@ const Register = () => {
         }}
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
-            Join AgentCores
-          </Typography>
-          
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            Create your account to join an existing organization
-          </Typography>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Business sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+            <Typography component="h1" variant="h4" gutterBottom>
+              Create Organization
+            </Typography>
+            
+            <Chip 
+              icon={<Person />} 
+              label="You will become the Organization Owner" 
+              color="primary" 
+              variant="outlined"
+              sx={{ mb: 2 }}
+            />
+            
+            <Typography variant="body2" color="text.secondary">
+              Start your AgentCores journey by creating your organization.
+              As the owner, you'll have full administrative privileges and can invite team members with different roles.
+            </Typography>
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
 
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -108,61 +190,71 @@ const Register = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="tenant_name"
-              label="Organization Name"
-              name="tenant_name"
-              autoComplete="organization"
-              autoFocus
-              value={formData.tenant_name}
-              onChange={handleChange}
-              helperText="The name of the organization you're joining"
-            />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="first_name"
-                  label="First Name"
-                  name="first_name"
-                  autoComplete="given-name"
-                  value={formData.first_name}
-                  onChange={handleChange}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="last_name"
-                  label="Last Name"
-                  name="last_name"
-                  autoComplete="family-name"
-                  value={formData.last_name}
-                  onChange={handleChange}
-                />
-              </Grid>
-            </Grid>
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+              Organization Details
+            </Typography>
             
             <TextField
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
+              id="organization_name"
+              label="Organization Name"
+              name="organization_name"
+              autoComplete="organization"
+              autoFocus
+              value={formData.organization_name}
+              onChange={handleChange}
+              helperText="The name of your organization (e.g., 'Acme Corporation')"
+            />
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="contact_name"
+              label="Contact Name"
+              name="contact_name"
+              autoComplete="name"
+              value={formData.contact_name}
+              onChange={handleChange}
+              helperText="Your full name as the organization owner"
+            />
+            
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="contact_email"
+              label="Contact Email"
+              name="contact_email"
               autoComplete="email"
               type="email"
-              value={formData.email}
+              value={formData.contact_email}
               onChange={handleChange}
+              helperText="This will be your login email address"
             />
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="subscription-tier-label">Subscription Tier</InputLabel>
+              <Select
+                labelId="subscription-tier-label"
+                id="subscription_tier"
+                name="subscription_tier"
+                value={formData.subscription_tier}
+                label="Subscription Tier"
+                onChange={handleChange}
+              >
+                <MenuItem value="free">Free (5 agents, 1000 tasks/month)</MenuItem>
+                <MenuItem value="basic">Basic (25 agents, 10,000 tasks/month)</MenuItem>
+                <MenuItem value="professional">Professional (100 agents, 100,000 tasks/month)</MenuItem>
+                <MenuItem value="enterprise">Enterprise (Unlimited)</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+              Security Settings
+            </Typography>
             
             <TextField
               margin="normal"
@@ -175,7 +267,7 @@ const Register = () => {
               autoComplete="new-password"
               value={formData.password}
               onChange={handleChange}
-              helperText="Must be at least 8 characters long"
+              helperText="Must be at least 8 characters with uppercase, lowercase, and numbers"
             />
 
             <TextField
@@ -198,7 +290,7 @@ const Register = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 'Create Account'}
+              {loading ? <CircularProgress size={24} /> : 'Create Organization & Become Owner'}
             </Button>
 
             <Box textAlign="center">
@@ -207,6 +299,9 @@ const Register = () => {
                 <Link to="/login" style={{ textDecoration: 'none' }}>
                   Sign In
                 </Link>
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1, fontSize: '0.875rem', color: 'text.secondary' }}>
+                Note: Only one owner per organization. You can invite employees with different roles after registration.
               </Typography>
             </Box>
           </Box>

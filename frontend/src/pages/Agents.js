@@ -20,6 +20,7 @@ import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useForm, Controller } from 'react-hook-form';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -32,7 +33,12 @@ const Agents = () => {
   const queryClient = useQueryClient();
   const { control, handleSubmit, reset } = useForm();
 
-  const { data, isLoading } = useQuery('agents', () => agentAPI.getAll());
+  const { data, isLoading } = useQuery('agents', () => agentAPI.getAll(), {
+    refetchOnWindowFocus: false, // Prevents reload on minimize/maximize
+    refetchOnMount: true,        // Fresh data when navigating back
+    staleTime: 1 * 60 * 1000,   // 1 minute - more frequent for management page
+    cacheTime: 5 * 60 * 1000,   // 5 minutes in memory
+  });
 
   const createMutation = useMutation(agentAPI.create, {
     onSuccess: () => {
@@ -139,13 +145,22 @@ const Agents = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Agents</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpen(true)}
-        >
-          Create Agent
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => setOpen(true)}
+          >
+            Quick Create
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<EditIcon />}
+            href="/agents/create"
+          >
+            Advanced Create
+          </Button>
+        </Box>
       </Box>
 
       <Box style={{ height: 600, width: '100%' }}>

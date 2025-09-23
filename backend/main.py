@@ -10,6 +10,7 @@ from app.database import engine, get_db, Base
 from app.models.database import *  # Import all models to register them with Base
 from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
+from app.api.security import router as security_router
 from app.schemas import HealthCheck
 from app.services.agent_service import TenantService
 
@@ -59,6 +60,12 @@ app.include_router(
     auth_router,
     prefix="/api/v1",
     tags=["authentication", "tenant-management", "user-management"]
+)
+
+app.include_router(
+    security_router,
+    prefix="/api/v1",
+    tags=["security"]
 )
 
 @app.get("/", response_model=HealthCheck)

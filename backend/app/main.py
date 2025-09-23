@@ -15,6 +15,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Union
+import json
 from pydantic import BaseModel, Field, ValidationError
 import logging
 
@@ -185,7 +186,9 @@ class RateLimitMiddleware:
 async def get_agent_service() -> AgentService:
     """Get agent service instance"""
     # In production: use dependency injection container
-    return AgentService()
+    from app.database import SessionLocal
+    db = SessionLocal()
+    return AgentService(db)
 
 
 async def get_template_engine() -> AgentTemplateEngine:
@@ -224,7 +227,11 @@ async def authenticate_user(credentials: HTTPAuthorizationCredentials = Depends(
     token = credentials.credentials
     
     if token == "demo-token" or token.startswith("demo-token-"):
-        return {"user_id": "demo-user", "role": "admin"}
+        return {"user_id": "demo-user", "role": "owner"}  # Fixed: demo user should be owner
+    elif token.startswith("user-owner-"):  # Check user-owner first (before user-)
+        return {"user_id": token, "role": "owner"}  # Support for organization owner tokens
+    elif token.startswith("org-owner-"):
+        return {"user_id": token, "role": "owner"}  # Support for organization owner tokens
     elif token.startswith("user-") or token.startswith("new-user-"):
         return {"user_id": token, "role": "user"}
     else:
@@ -355,22 +362,21 @@ async def login(request: LoginRequest):
     try:
         from app.database import SessionLocal
         from sqlalchemy import text
+        import bcrypt
         
         db = SessionLocal()
         
-        # Check if user exists (demo credentials)
+        # Check demo credentials first
         if (request.email == "admin@demo.agentcores.com" and 
             request.password == "admin123" and 
             request.org_name == "AgentCores Demo"):
             
-            # Generate demo token (in production, use proper JWT)
             access_token = "demo-token-" + str(uuid.uuid4())[:8]
             
-            # Create user and tenant objects as expected by frontend
             user_info = UserInfo(
                 id="demo-user",
                 email=request.email,
-                role="admin"
+                role="owner"  # Demo user is organization owner
             )
             
             tenant_info = TenantInfo(
@@ -387,11 +393,93 @@ async def login(request: LoginRequest):
                 tenant=tenant_info,
                 refresh_token=None
             )
+        
+        # Check real user credentials
+        # Find user by email first (they might be in any organization)
+        if request.org_name:
+            # If organization name is provided, use the existing logic
+            org_result = db.execute(
+                text("SELECT id, name, subdomain FROM tenants WHERE name = :name"),
+                {"name": request.org_name}
+            ).fetchone()
+            
+            if not org_result:
+                raise HTTPException(status_code=401, detail="Organization not found")
+            
+            tenant_id, tenant_name, subdomain = org_result
+            
+            # Find user in this specific organization
+            user_result = db.execute(
+                text("""
+                    SELECT id, email, hashed_password, full_name, role, is_active, tenant_id
+                    FROM users 
+                    WHERE email = :email AND tenant_id = :tenant_id
+                """),
+                {"email": request.email, "tenant_id": tenant_id}
+            ).fetchone()
         else:
+            # Find user by email across all organizations (normal login flow)
+            user_result = db.execute(
+                text("""
+                    SELECT u.id, u.email, u.hashed_password, u.full_name, u.role, u.is_active, u.tenant_id,
+                           t.name as tenant_name, t.subdomain
+                    FROM users u
+                    JOIN tenants t ON u.tenant_id = t.id
+                    WHERE u.email = :email
+                """),
+                {"email": request.email}
+            ).fetchone()
+            
+            if user_result:
+                user_id, email, hashed_password, full_name, role, is_active, tenant_id, tenant_name, subdomain = user_result
+            else:
+                user_result = None
+        
+        if not user_result:
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Extract user data based on which query path we took
+        if request.org_name:
+            # From the organization-specific query
+            user_id, email, hashed_password, full_name, role, is_active, tenant_id = user_result
+        else:
+            # From the email-first query (already extracted above)
+            pass  # user_id, email, etc. already extracted
+        
+        if not is_active:
+            raise HTTPException(status_code=401, detail="Account is deactivated")
+        
+        # Verify password
+        if not bcrypt.checkpw(request.password.encode('utf-8'), hashed_password.encode('utf-8')):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        db.close()
+        
+        # Generate access token
+        access_token = f"user-{role}-" + str(uuid.uuid4())[:12]
+        
+        user_info = UserInfo(
+            id=str(user_id),  # Convert UUID to string
+            email=email,
+            role=role
+        )
+        
+        tenant_info = TenantInfo(
+            id=str(tenant_id),  # Convert UUID to string
+            name=tenant_name,
+            subdomain=subdomain
+        )
+        
+        return LoginResponse(
+            access_token=access_token,
+            token_type="bearer",
+            expires_in=3600,
+            user=user_info,
+            tenant=tenant_info,
+            refresh_token=None
+        )
             
     except HTTPException:
-        # Re-raise HTTP exceptions (like 401 for invalid credentials)
         raise
     except Exception as e:
         logger.error(f"Login failed: {str(e)}")
@@ -418,24 +506,142 @@ class RegisterRequest(BaseModel):
     tenant_name: str = Field(..., min_length=1, max_length=255)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    role: Optional[str] = "owner"  # Default to owner for organization creation
+    is_organization_creation: Optional[bool] = False  # Flag for organization creation
+    subscription_tier: Optional[str] = "free"  # Subscription tier
 
 @app.post("/auth/register", response_model=LoginResponse, tags=["Authentication"])
 async def register(request: RegisterRequest):
-    """User registration endpoint"""
+    """User registration endpoint - Creates organization with owner"""
     try:
-        # For demo purposes, accept any registration and return success
-        # In production, this would create actual user/tenant records
+        from app.database import SessionLocal
+        from sqlalchemy import text
         
-        access_token = "demo-token-" + str(uuid.uuid4())[:8]
+        db = SessionLocal()
         
+        # Check if organization already exists
+        result = db.execute(
+            text("SELECT id FROM tenants WHERE name = :name"),
+            {"name": request.tenant_name}
+        ).fetchone()
+        
+        if result:
+            # Organization exists - check if it has an owner
+            owner_check = db.execute(
+                text("SELECT id FROM users WHERE tenant_id = :tenant_id AND role = 'owner'"),
+                {"tenant_id": result[0]}
+            ).fetchone()
+            
+            if owner_check:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="This organization already has an owner. Only one owner is allowed per organization."
+                )
+            else:
+                # Organization exists but no owner - this shouldn't happen in normal flow
+                raise HTTPException(
+                    status_code=400,
+                    detail="Organization already exists. Please contact support."
+                )
+        
+        # Check if user email already exists
+        user_check = db.execute(
+            text("SELECT id FROM users WHERE email = :email"),
+            {"email": request.email}
+        ).fetchone()
+        
+        if user_check:
+            raise HTTPException(
+                status_code=400,
+                detail="User with this email already exists."
+            )
+        
+        # For demo purposes, create the organization and user
+        # In production, this would use proper database transactions
+        
+        # Generate IDs
+        import uuid
+        tenant_id = str(uuid.uuid4())
+        user_id = str(uuid.uuid4())
+        
+        # Create tenant/organization
+        tenant_settings = {
+            "subscription_tier": request.subscription_tier,
+            "created_by": "registration",
+            "features": {
+                "max_agents": 5 if request.subscription_tier == "free" else 
+                             25 if request.subscription_tier == "basic" else
+                             100 if request.subscription_tier == "professional" else -1,
+                "max_tasks_per_month": 1000 if request.subscription_tier == "free" else
+                                      10000 if request.subscription_tier == "basic" else
+                                      100000 if request.subscription_tier == "professional" else -1
+            }
+        }
+        
+        # Insert tenant including required display_name to satisfy NOT NULL constraint
+        db.execute(
+            text("""
+                INSERT INTO tenants (id, name, display_name, subdomain, created_at, updated_at, settings)
+                VALUES (:id, :name, :display_name, :subdomain, NOW(), NOW(), :settings)
+            """),
+            {
+                "id": tenant_id,
+                "name": request.tenant_name,
+                "display_name": request.tenant_name,
+                "subdomain": request.tenant_name.lower().replace(" ", "-"),
+                # Serialize settings to valid JSON
+                "settings": json.dumps(tenant_settings)
+            }
+        )
+        
+        # Create owner user
+        import bcrypt
+        hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        full_name = f"{request.first_name or ''} {request.last_name or ''}".strip() or request.email.split('@')[0]
+        
+        user_settings = {
+            "role": "owner",
+            "permissions": "all",
+            "created_by": "registration",
+            "subscription_tier": request.subscription_tier,
+            "is_organization_creator": True
+        }
+        
+        db.execute(
+            text("""
+                INSERT INTO users (id, tenant_id, username, email, hashed_password, full_name, role, is_active, created_at, updated_at, settings)
+                VALUES (:id, :tenant_id, :username, :email, :hashed_password, :full_name, :role, :is_active, NOW(), NOW(), :settings)
+            """),
+            {
+                "id": user_id,
+                "tenant_id": tenant_id,
+                "username": request.email,  # Use email as username to satisfy NOT NULL and ensure uniqueness
+                "email": request.email,
+                "hashed_password": hashed_password,
+                "full_name": full_name,
+                "role": "owner",
+                "is_active": True,
+                # Serialize settings to valid JSON to ensure booleans are lowercase true/false
+                "settings": json.dumps(user_settings)
+            }
+        )
+        
+        db.commit()
+        db.close()
+        
+        # Generate access token
+        access_token = "org-owner-" + str(uuid.uuid4())[:12]
+        
+        # Create user and tenant objects
         user_info = UserInfo(
-            id="new-user-" + str(uuid.uuid4())[:8],
+            id=user_id,
             email=request.email,
-            role="admin"
+            role="owner"
         )
         
         tenant_info = TenantInfo(
-            id="new-tenant-" + str(uuid.uuid4())[:8],
+            id=tenant_id,
             name=request.tenant_name,
             subdomain=request.tenant_name.lower().replace(" ", "-")
         )
@@ -483,6 +689,7 @@ async def health_check_v1():
     return await health_check()
 
 
+# Agent Management Endpoints
 # Agent Management Endpoints
 @app.post("/agents", response_model=AgentResponse, tags=["Agents"])
 async def create_agent(

@@ -6,6 +6,9 @@ WORKDIR /app
 # Copy package files first (cache layer)
 COPY package*.json ./
 
+# Install tools required for healthchecks and dev
+RUN apk add --no-cache wget
+
 # Install all dependencies including dev dependencies
 RUN npm install --silent
 
