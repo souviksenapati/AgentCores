@@ -68,6 +68,7 @@ class UserRole(str, enum.Enum):
     OPERATOR = "operator"
     VIEWER = "viewer"
     GUEST = "guest"
+    INDIVIDUAL = "individual"
 
 class InvitationStatus(str, enum.Enum):
     PENDING = "pending"

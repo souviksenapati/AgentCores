@@ -56,11 +56,14 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
   const getAssignableRoles = () => {
     switch (user?.role) {
       case 'owner':
-        return Object.values(USER_ROLES).filter(role => role !== 'owner'); // Owner can assign all except owner
+        // Owner can assign all except owner and individual (individual is for personal accounts only)
+        return Object.values(USER_ROLES).filter(role => role !== 'owner' && role !== 'individual');
       case 'admin':
-        return ['manager', 'developer', 'analyst', 'operator', 'viewer', 'guest']; // Admin can't create other admins
+        // Admin can't create other admins or individual accounts
+        return ['manager', 'developer', 'analyst', 'operator', 'viewer', 'guest'];
       case 'manager':
-        return ['developer', 'analyst', 'operator', 'viewer', 'guest']; // Manager can assign below manager level
+        // Manager can assign below manager level (no individual role)
+        return ['developer', 'analyst', 'operator', 'viewer', 'guest'];
       default:
         return []; // Others can't invite
     }

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 // Security: Request ID for tracking and CSRF protection
 const generateRequestId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);

@@ -10,9 +10,15 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
+import { Business, Person } from '@mui/icons-material';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,6 +28,7 @@ const Login = () => {
     email: '',
     password: '',
     organization: '',
+    userType: 'organization', // 'organization' or 'individual'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -77,10 +84,13 @@ const Login = () => {
       errors.push('Password is too short');
     }
 
-    if (!credentials.organization) {
-      errors.push('Organization name is required');
-    } else if (credentials.organization.length < 2) {
-      errors.push('Organization name must be at least 2 characters');
+    // Only validate organization for organization users
+    if (credentials.userType === 'organization') {
+      if (!credentials.organization) {
+        errors.push('Organization name is required');
+      } else if (credentials.organization.length < 2) {
+        errors.push('Organization name must be at least 2 characters');
+      }
     }
     
     return errors;
@@ -96,13 +106,13 @@ const Login = () => {
 
   // Clear error when user starts typing
   useEffect(() => {
-    if (error && (formData.email || formData.password || formData.organization)) {
+    if (error && (formData.email || formData.password || formData.organization || formData.userType)) {
       const timer = setTimeout(() => {
         setError('');
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [formData.email, formData.password, formData.organization, error]);
+  }, [formData.email, formData.password, formData.organization, formData.userType, error]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -127,7 +137,12 @@ const Login = () => {
 
       console.log(`Login attempt #${attemptCount + 1} for:`, formData.email);
       
-      const response = await authAPI.login(formData);
+      // Add is_individual_account to payload for backend
+      const loginPayload = {
+        ...formData,
+        is_individual_account: formData.userType === 'individual',
+      };
+      const response = await authAPI.login(loginPayload);
       const authData = response?.data ?? response;
 
       // Validate response structure
@@ -174,7 +189,10 @@ const Login = () => {
           </Typography>
 
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            Enter your credentials to access your organization
+            {formData.userType === 'organization' 
+              ? 'Enter your credentials to access your organization'
+              : 'Enter your credentials to access your personal workspace'
+            }
           </Typography>
 
           {error && (
@@ -184,6 +202,40 @@ const Login = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+            {/* User Type Selection */}
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Account Type</InputLabel>
+              <Select
+                name="userType"
+                value={formData.userType}
+                onChange={handleChange}
+                label="Account Type"
+              >
+                <MenuItem value="organization">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Business />
+                    <Box>
+                      <Typography variant="body1">Organization</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Multi-user workspace with team management
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="individual">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Person />
+                    <Box>
+                      <Typography variant="body1">Individual</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Personal workspace for individual use
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+
             <TextField
               margin="normal"
               required
@@ -211,17 +263,20 @@ const Login = () => {
               autoComplete="current-password"
             />
 
-             <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="organization"
-              label="Organization Name"
-              name="organization"
-              value={formData.organization}
-              onChange={handleChange}
-              helperText="Enter your organization name (e.g., 'AgentCores Demo')"
-            />
+            {/* Conditional Organization Field */}
+            {formData.userType === 'organization' && (
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="organization"
+                label="Organization Name"
+                name="organization"
+                value={formData.organization}
+                onChange={handleChange}
+                helperText="Enter your organization name (e.g., 'AgentCores Demo')"
+              />
+            )}
 
             <Button
               type="submit"
@@ -245,12 +300,12 @@ const Login = () => {
             <Box textAlign="center">
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Don’t have an account? Ask your organization admin to invite you,
-                or create a new organization.
+
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                <strong>Want to create a new organization?</strong>{' '}
+                <strong>Ready to get started?</strong>{' '}
                 <Link to="/register" style={{ textDecoration: 'none' }}>
-                  Create Organization
+                  Create Account
                 </Link>
               </Typography>
               <Button component={Link} to="/forgot-password" variant="text" size="small">

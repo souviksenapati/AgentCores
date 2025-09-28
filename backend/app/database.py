@@ -43,8 +43,10 @@ class EnterpriseConfig:
     PORT: int = int(os.getenv("PORT", "8000"))
     WORKERS: int = int(os.getenv("WORKERS", "4"))
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://agent_user:agent_password@localhost:5432/agentcores_db")
+    # Multi-Database Configuration (Legacy database removed)
+    ORG_DATABASE_URL: str = os.getenv("ORG_DATABASE_URL", "postgresql://agent_user:agent_password@postgres-orgs:5432/agentcores_orgs")
+    INDIVIDUAL_DATABASE_URL: str = os.getenv("INDIVIDUAL_DATABASE_URL", "postgresql://agent_user:agent_password@postgres-individuals:5432/agentcores_individuals")
+    
     DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "20"))
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "30"))
     DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
@@ -133,9 +135,8 @@ class EnterpriseConfig:
     
     @classmethod
     def get_database_config(cls) -> Dict[str, Any]:
-        """Get database configuration for SQLAlchemy"""
+        """Get database configuration for SQLAlchemy (multi-tenant setup)"""
         config = {
-            "url": cls.DATABASE_URL,
             "pool_size": cls.DB_POOL_SIZE,
             "max_overflow": cls.DB_MAX_OVERFLOW,
             "pool_timeout": cls.DB_POOL_TIMEOUT,
@@ -201,12 +202,18 @@ class EnterpriseConfig:
 # Initialize configuration
 config = EnterpriseConfig()
 
-# Create enterprise database engine
+# Create multi-tenant database engines
 db_config = config.get_database_config()
-engine = create_engine(**db_config)
 
-# Create SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Organization database engine
+org_engine = create_engine(config.ORG_DATABASE_URL, **{k: v for k, v in db_config.items() if k != 'url'})
+
+# Individual users database engine  
+individual_engine = create_engine(config.INDIVIDUAL_DATABASE_URL, **{k: v for k, v in db_config.items() if k != 'url'})
+
+# Create SessionLocal classes for each database
+OrgSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=org_engine)
+IndividualSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=individual_engine)
 
 # Base class for models
 Base = declarative_base()
@@ -217,9 +224,35 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
+# Multi-Database Session Management
+def get_db_session(account_type: str):
+    """
+    Get database session based on account type
+    
+    Args:
+        account_type: "individual" or "organization"
+    
+    Returns:
+        Database session for the appropriate database
+    """
+    if account_type == "individual":
+        return IndividualSessionLocal()
+    elif account_type == "organization":
+        return OrgSessionLocal()
+    else:
+        raise ValueError(f"Invalid account type: {account_type}. Must be 'individual' or 'organization'")
+
+# Dependency to get Organization DB session
+def get_org_db():
+    db = OrgSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Dependency to get Individual DB session  
+def get_individual_db():
+    db = IndividualSessionLocal()
     try:
         yield db
     finally:
@@ -227,8 +260,11 @@ def get_db():
 
 
 def init_database():
-    """Initialize database with tables and default data"""
-    print("🔧 Initializing enterprise multi-tenant database...")
+    """Initialize multi-database setup with tables and default data"""
+    print("🔧 Initializing enterprise multi-database system...")
+    print("   📊 Organization Database: For multi-tenant organizations")
+    print("   👤 Individual Database: For isolated individual users")
+    print("   🔄 Legacy Database: For compatibility and fallback")
     
     # Validate configuration first
     validation = config.validate_configuration()
@@ -248,12 +284,17 @@ def init_database():
         Tenant, Agent, Task, Template, Event
     )
     
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
-    print("✅ Enterprise database tables created")
+    # Create tables in multi-tenant databases
+    print("🏢 Creating organization database tables...")
+    Base.metadata.create_all(bind=org_engine, checkfirst=True)
     
-    # Create default tenant and data
-    db = SessionLocal()
+    print("👤 Creating individual users database tables...")
+    Base.metadata.create_all(bind=individual_engine, checkfirst=True)
+    
+    print("✅ Multi-tenant database tables created")
+    
+    # Create default data in organization database
+    db = OrgSessionLocal()
     try:
         # Check if we already have data
         existing_tenant_count = db.execute(text("SELECT COUNT(*) FROM tenants")).scalar()
@@ -338,7 +379,7 @@ def init_database():
 
 
 # Global configuration instance
-DATABASE_URL = config.DATABASE_URL
+config = EnterpriseConfig()
 
 
 def validate_startup_configuration():
@@ -347,15 +388,16 @@ def validate_startup_configuration():
         config = EnterpriseConfig()
         
         # Basic validation
-        required_settings = ['DATABASE_URL', 'SECRET_KEY']
+        required_settings = ['ORG_DATABASE_URL', 'INDIVIDUAL_DATABASE_URL', 'SECRET_KEY']
         missing = [setting for setting in required_settings if not getattr(config, setting, None)]
         
         if missing:
             raise ValueError(f"Missing required configuration: {', '.join(missing)}")
         
-        # Test database connection
-        engine = create_engine(config.DATABASE_URL)
-        with engine.connect() as conn:
+        # Test database connections
+        with org_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        with individual_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         
         print("✅ Startup configuration validated")

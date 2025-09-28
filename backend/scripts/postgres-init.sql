@@ -1,5 +1,42 @@
--- AgentCores Enterprise Platform - PostgreSQL Initialization Script
--- Creates multi-tenant database schema with enterprise features
+-- AgentCo-- Create user (if not exists) 
+-- Note: Password is set via environment variable during container creation
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'agent_user') THEN
+        -- User is created by container with POSTGRES_PASSWORD env var
+        RAISE NOTICE 'User agent_user should be created by container initialization';
+    ELSE
+        RAISE NOTICE 'User agent_user already exists';
+    END IF;
+END
+$$;ise Platform - PostgreSQL Multi-Database Initialization Script
+-- Creates multi-database architecture for enterprise multi-tenancy
+-- Each database serves a specific purpose:
+-- - agentcores_db: Legacy/Demo database for compatibility
+-- - agentcores_orgs: Organization database for multi-tenant organizations  
+-- - agentcores_individuals: Individual users database for isolated accounts
+
+-- Ensure we're connected to the correct database
+\echo 'Initializing database: ' :DBNAME
+
+-- Create user if not exists (for manual setup compatibility)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'agent_user') THEN
+        CREATE USER agent_user WITH PASSWORD 'agent_password';
+        RAISE NOTICE 'Created user: agent_user';
+    ELSE
+        RAISE NOTICE 'User agent_user already exists';
+    END IF;
+END
+$$;
+
+-- Grant privileges to agent_user
+ALTER USER agent_user CREATEDB;
+ALTER USER agent_user LOGIN;
+GRANT ALL PRIVILEGES ON DATABASE agentcores_db TO agent_user;
+GRANT ALL PRIVILEGES ON DATABASE agentcores_orgs TO agent_user;
+GRANT ALL PRIVILEGES ON DATABASE agentcores_individuals TO agent_user;
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

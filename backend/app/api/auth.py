@@ -10,7 +10,7 @@ from app.auth import (
     get_tenant_id, require_admin_role, require_manager_role, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from app.models.database import User, Tenant, UserRole
-from app.services import UserService, TenantService, SecurityService, InvitationService
+# TODO: Import actual services when they are implemented
 
 router = APIRouter()
 
@@ -56,20 +56,6 @@ async def login(
     user = authenticate_user(db, login_data.email, login_data.password)
     
     if not user:
-        # Log failed login attempt
-        SecurityService.log_security_event(
-            db=db,
-            tenant_id="unknown",
-            event_type="failed_login",
-            severity="warning",
-            event_data={
-                "attempted_email": login_data.email,
-                "failure_reason": "invalid_credentials"
-            },
-            result="denied",
-            risk_score=30
-        )
-        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -87,20 +73,7 @@ async def login(
     user.last_login = datetime.utcnow()
     db.commit()
     
-    # Log successful login
-    SecurityService.log_security_event(
-        db=db,
-        tenant_id=user.tenant_id,
-        user_id=user.id,
-        event_type="login",
-        severity="info",
-        event_data={
-            "login_method": "password",
-            "user_role": user.role.value
-        },
-        result="success",
-        risk_score=5
-    )
+    # TODO: Add security event logging
     
     return LoginResponse(
         access_token=access_token,
@@ -124,19 +97,7 @@ async def logout(
     db: Session = Depends(get_db)
 ):
     """Logout user (client should discard tokens)"""
-    # Log logout event
-    SecurityService.log_security_event(
-        db=db,
-        tenant_id=current_user.tenant_id,
-        user_id=current_user.id,
-        event_type="logout",
-        severity="info",
-        event_data={
-            "user_role": current_user.role.value
-        },
-        result="success",
-        risk_score=5
-    )
+    # TODO: Add security event logging
     
     return
 
@@ -259,23 +220,8 @@ async def invite_user(
     db: Session = Depends(get_db)
 ):
     """Invite a user to the tenant"""
-    try:
-        invitation = InvitationService.create_invitation(
-            db=db,
-            tenant_id=tenant_id,
-            email=invitation_data.email,
-            role=invitation_data.role,
-            invited_by=current_user.id
-        )
-        
-        return {
-            "message": "Invitation sent successfully",
-            "invitation_id": invitation.id,
-            "email": invitation.email,
-            "role": invitation.role.value
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    # TODO: Implement invitation service
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Invitation feature not implemented yet"
+    )

@@ -23,7 +23,7 @@ import { authAPI } from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login, user, isAuthenticated, loading: authLoading } = useAuth();
+  const { login, user } = useAuth();
   const [formData, setFormData] = useState({
     organization_name: '',
     contact_name: '',
@@ -31,6 +31,7 @@ const Register = () => {
     subscription_tier: 'free',
     password: '',
     confirmPassword: '',
+    userType: 'organization', // 'organization' or 'individual'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ const Register = () => {
 
   // Effect to handle navigation after successful registration and login
   useEffect(() => {
-    if (registrationComplete && user && user.role === 'owner') {
+    if (registrationComplete && user && (user.role === 'owner' || user.role === 'individual')) {
       console.log('Registration complete and user authenticated, navigating to dashboard');
       navigate('/dashboard');
     }
@@ -52,12 +53,18 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (!formData.organization_name || !formData.contact_name || !formData.contact_email || !formData.password) {
+    if (!formData.contact_name || !formData.contact_email || !formData.password) {
       setError('Please fill in all required fields');
       return false;
     }
 
-    if (formData.organization_name.length < 2) {
+    // Validate organization name only for organization accounts
+    if (formData.userType === 'organization' && !formData.organization_name) {
+      setError('Organization name is required for organization accounts');
+      return false;
+    }
+
+    if (formData.userType === 'organization' && formData.organization_name.length < 2) {
       setError('Organization name must be at least 2 characters long');
       return false;
     }
@@ -112,17 +119,27 @@ const Register = () => {
       const first_name = nameParts[0] || '';
       const last_name = nameParts.slice(1).join(' ') || '';
 
-      // Register with organization creation (user becomes the owner)
+      // Prepare registration data based on user type
       const registrationData = {
         email: formData.contact_email,
         password: formData.password,
-        tenant_name: formData.organization_name,
         first_name: first_name,
         last_name: last_name,
-        role: 'owner',
-        is_organization_creation: true,
         subscription_tier: formData.subscription_tier,
       };
+
+      if (formData.userType === 'organization') {
+        // Register with organization creation (user becomes the owner)
+        registrationData.tenant_name = formData.organization_name;
+        registrationData.role = 'owner';
+        registrationData.is_individual_account = false; // CRITICAL FIX: Set to false for organizations
+        registrationData.is_organization_creation = true;
+      } else {
+        // Register as individual user
+        registrationData.tenant_name = `${first_name} ${last_name}'s Workspace`;
+        registrationData.role = 'individual';
+        registrationData.is_individual_account = true; // Explicitly set to true for individuals
+      }
 
       const response = await authAPI.register(registrationData);
       const authData = response.data;
@@ -135,9 +152,13 @@ const Register = () => {
     } catch (error) {
       console.error('Registration error:', error);
       if (error.response?.data?.detail?.includes('organization already exists')) {
-        setError('An organization with this name already exists. Please choose a different name or contact the existing organization owner for an invitation.');
+        setError(formData.userType === 'organization' 
+          ? 'An organization with this name already exists. Please choose a different name or contact the existing organization owner for an invitation.'
+          : 'A workspace with this name already exists. Please choose a different name.');
       } else if (error.response?.data?.detail?.includes('owner already exists')) {
-        setError('This organization already has an owner. Only one owner is allowed per organization.');
+        setError(formData.userType === 'organization'
+          ? 'This organization already has an owner. Only one owner is allowed per organization.'
+          : 'Registration failed. Please try again.');
       } else {
         setError(
           error.response?.data?.detail || 
@@ -162,22 +183,29 @@ const Register = () => {
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Business sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+            {formData.userType === 'organization' ? (
+              <Business sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+            ) : (
+              <Person sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+            )}
+            
             <Typography component="h1" variant="h4" gutterBottom>
-              Create Organization
+              {formData.userType === 'organization' ? 'Create Organization' : 'Create Individual Account'}
             </Typography>
             
             <Chip 
-              icon={<Person />} 
-              label="You will become the Organization Owner" 
+              icon={formData.userType === 'organization' ? <Person /> : <Person />} 
+              label={formData.userType === 'organization' ? 'You will become the Organization Owner' : 'Personal workspace for individual use'} 
               color="primary" 
               variant="outlined"
               sx={{ mb: 2 }}
             />
             
             <Typography variant="body2" color="text.secondary">
-              Start your AgentCores journey by creating your organization.
-              As the owner, you'll have full administrative privileges and can invite team members with different roles.
+              {formData.userType === 'organization' 
+                ? 'Start your AgentCores journey by creating your organization. As the owner, you\'ll have full administrative privileges and can invite team members with different roles.'
+                : 'Create your personal AgentCores workspace. Perfect for individual projects and personal AI agent management.'
+              }
             </Typography>
           </Box>
 
@@ -190,23 +218,64 @@ const Register = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+            {/* Account Type Selection */}
             <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
-              Organization Details
+              Account Type
             </Typography>
             
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="organization_name"
-              label="Organization Name"
-              name="organization_name"
-              autoComplete="organization"
-              autoFocus
-              value={formData.organization_name}
-              onChange={handleChange}
-              helperText="The name of your organization (e.g., 'Acme Corporation')"
-            />
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Account Type</InputLabel>
+              <Select
+                name="userType"
+                value={formData.userType}
+                onChange={handleChange}
+                label="Account Type"
+              >
+                <MenuItem value="organization">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Business />
+                    <Box>
+                      <Typography variant="body1">Organization</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Multi-user workspace with team management
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="individual">
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Person />
+                    <Box>
+                      <Typography variant="body1">Individual</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Personal workspace for individual use
+                      </Typography>
+                    </Box>
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+              {formData.userType === 'organization' ? 'Organization Details' : 'Account Details'}
+            </Typography>
+            
+            {/* Organization Name - Only for Organization accounts */}
+            {formData.userType === 'organization' && (
+              <TextField
+                margin="normal"
+                required
+                fullWidth
+                id="organization_name"
+                label="Organization Name"
+                name="organization_name"
+                autoComplete="organization"
+                autoFocus
+                value={formData.organization_name}
+                onChange={handleChange}
+                helperText="The name of your organization (e.g., 'Acme Corporation')"
+              />
+            )}
 
             <TextField
               margin="normal"
@@ -290,7 +359,8 @@ const Register = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 'Create Organization & Become Owner'}
+              {loading ? <CircularProgress size={24} /> : 
+                formData.userType === 'organization' ? 'Create Organization & Become Owner' : 'Create Individual Account'}
             </Button>
 
             <Box textAlign="center">

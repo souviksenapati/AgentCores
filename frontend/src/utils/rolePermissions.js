@@ -41,6 +41,7 @@ export const USER_ROLES = {
   MANAGER: 'manager',       // Team manager - team and project management
   DEVELOPER: 'developer',   // Developer - agent creation and technical features
   ANALYST: 'analyst',       // Data analyst - analytics and reporting
+  INDIVIDUAL: 'individual', // Individual user - personal workspace
   OPERATOR: 'operator',     // Operations - monitoring and maintenance
   VIEWER: 'viewer',         // Read-only access to most features
   GUEST: 'guest',           // Limited read-only access
@@ -267,6 +268,27 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_DOCS,
   ],
   
+  [USER_ROLES.INDIVIDUAL]: [
+    // Individual user - personal workspace without organization features
+    PERMISSIONS.VIEW_DASHBOARD,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_AGENTS,
+    PERMISSIONS.CREATE_AGENTS,
+    PERMISSIONS.EDIT_AGENTS,
+    PERMISSIONS.VIEW_TASKS,
+    PERMISSIONS.CREATE_TASKS,
+    PERMISSIONS.EDIT_TASKS,
+    PERMISSIONS.VIEW_TASK_DETAILS,
+    PERMISSIONS.VIEW_COSTS,
+    PERMISSIONS.VIEW_INTEGRATIONS,
+    PERMISSIONS.MANAGE_INTEGRATIONS,
+    PERMISSIONS.VIEW_API_KEYS,
+    PERMISSIONS.MANAGE_API_KEYS,
+    PERMISSIONS.VIEW_ACTIVITY,
+    PERMISSIONS.VIEW_DOCS,
+    PERMISSIONS.VIEW_SUPPORT,
+  ],
+
   [USER_ROLES.DEMO]: [
     // Demo mode - showcase all features with view-only access
     PERMISSIONS.VIEW_DASHBOARD,
@@ -633,6 +655,7 @@ export const getRoleDisplayName = (role) => {
     [USER_ROLES.OPERATOR]: 'Operator',
     [USER_ROLES.VIEWER]: 'Viewer',
     [USER_ROLES.GUEST]: 'Guest',
+    [USER_ROLES.INDIVIDUAL]: 'Individual',
     [USER_ROLES.DEMO]: 'Demo User',
   };
   return roleNames[role] || role;
@@ -648,6 +671,7 @@ export const getRoleColor = (role) => {
     [USER_ROLES.OPERATOR]: 'secondary',
     [USER_ROLES.VIEWER]: 'default',
     [USER_ROLES.GUEST]: 'default',
+    [USER_ROLES.INDIVIDUAL]: 'secondary',
     [USER_ROLES.DEMO]: 'info',
   };
   return roleColors[role] || 'default';

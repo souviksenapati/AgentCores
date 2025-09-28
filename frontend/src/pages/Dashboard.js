@@ -213,6 +213,8 @@ const Dashboard = () => {
         return 'View reports and system status';
       case 'guest':
         return 'Limited access to system overview';
+      case 'individual':
+        return 'Your personal workspace for AI agents';
       case 'demo':
         return 'Explore our platform capabilities';
       default:
@@ -381,16 +383,19 @@ const Dashboard = () => {
                 />
               </Grid>
               
-              <Grid item xs={12} sm={6} md={4}>
-                <QuickActionCard
-                  title="Manage Users"
-                  description="Add and manage team members"
-                  icon={<GroupIcon />}
-                  href="/users"
-                  permission={PERMISSIONS.MANAGE_USERS}
-                  color="info"
-                />
-              </Grid>
+              {/* Hide user management for individual accounts */}
+              {user?.role !== 'individual' && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <QuickActionCard
+                    title="Manage Users"
+                    description="Add and manage team members"
+                    icon={<GroupIcon />}
+                    href="/users"
+                    permission={PERMISSIONS.MANAGE_USERS}
+                    color="info"
+                  />
+                </Grid>
+              )}
               
               <Grid item xs={12} sm={6} md={4}>
                 <QuickActionCard
@@ -507,8 +512,8 @@ const Dashboard = () => {
             </Paper>
           )}
 
-          {/* Organization Settings for Owners */}
-          {hasUserPermission(PERMISSIONS.MANAGE_ORG_SETTINGS) && (
+          {/* Organization Settings for Owners (hide for individual accounts) */}
+          {user?.role !== 'individual' && hasUserPermission(PERMISSIONS.MANAGE_ORG_SETTINGS) && (
             <Paper sx={{ p: 3, mt: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Organization
@@ -531,6 +536,26 @@ const Dashboard = () => {
                   size="small"
                 >
                   Manage Users
+                </Button>
+              </Box>
+            </Paper>
+          )}
+
+          {/* Personal Workspace for Individual Users */}
+          {user?.role === 'individual' && (
+            <Paper sx={{ p: 3, mt: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Personal Workspace
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={1}>
+                <Button
+                  variant="outlined"
+                  startIcon={<SettingsIcon />}
+                  href="/profile/settings"
+                  fullWidth
+                  size="small"
+                >
+                  Profile Settings
                 </Button>
               </Box>
             </Paper>
