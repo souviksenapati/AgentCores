@@ -17,7 +17,7 @@ from jose import JWTError, jwt
 
 # Import multi-tenant database functions
 from app.database import get_individual_db, get_org_db, get_db_session
-from app.models.database import User, Tenant, UserRole
+from app.models.database import User, Tenant, UserRole, Agent, AgentStatus
 
 # Configuration
 SECRET_KEY = "your-secret-key-here-change-in-production"
@@ -56,6 +56,7 @@ class LoginResponse(BaseModel):
 # Simple password hashing functions (inline)
 import hashlib
 import secrets
+import json
 
 def get_password_hash(password: str) -> str:
     """Simple password hashing with salt"""
@@ -338,6 +339,295 @@ async def login(login_data: LoginRequest):
         logger.error(f"Login failed: {str(e)}")
         raise HTTPException(status_code=401, detail=str(e))
 
+
+# Agent Models
+class AgentCreateRequest(BaseModel):
+    name: str
+    description: str
+    agent_type: str = "chatbot"
+    model: str = "anthropic/claude-3-haiku"
+    instructions: str = "You are a helpful AI assistant."
+    temperature: float = 0.7
+    max_tokens: int = 1000
+
+# Auth helper
+async def get_current_user_from_token(token: str, db):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        tenant_id = payload.get("tenant_id")
+        if not user_id or not tenant_id:
+            return None
+        user = db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id).first()
+        return user if user and user.is_active else None
+    except:
+        return None
+
+@app.post("/agents")
+async def create_agent(agent_data: AgentCreateRequest, request: Request):
+    """Create agent with tenant isolation"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    
+    token = auth_header.split(" ")[1]
+    
+    # Determine database based on token payload
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        tenant_id = payload.get("tenant_id")
+        email = payload.get("email")
+        
+        if not all([user_id, tenant_id, email]):
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+        # Determine if individual or org account
+        is_individual = False
+        org_db = next(get_org_db())
+        user = org_db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id).first()
+        if user:
+            db = org_db
+        else:
+            org_db.close()
+            ind_db = next(get_individual_db())
+            user = ind_db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id).first()
+            if user:
+                db = ind_db
+                is_individual = True
+            else:
+                ind_db.close()
+                raise HTTPException(status_code=401, detail="User not found")
+        
+        if not user.is_active:
+            db.close()
+            raise HTTPException(status_code=401, detail="User account is inactive")
+        
+        # Create agent with tenant isolation (using actual DB schema)
+        agent_id = str(uuid.uuid4())
+        
+        # Use raw SQL since the model doesn't match the actual schema
+        from sqlalchemy import text
+        insert_query = text("""
+            INSERT INTO agents (id, tenant_id, name, description, template_id, provider, model, status, config, created_by)
+            VALUES (:id, :tenant_id, :name, :description, :template_id, :provider, :model, :status, :config, :created_by)
+            RETURNING id, name, description, status, config, created_at
+        """)
+        
+        result = db.execute(insert_query, {
+            'id': agent_id,
+            'tenant_id': tenant_id,
+            'name': agent_data.name,
+            'description': agent_data.description,
+            'template_id': 'custom',
+            'provider': 'openrouter',
+            'model': agent_data.model,
+            'status': 'active',
+            'config': json.dumps({
+                "model": agent_data.model,
+                "instructions": agent_data.instructions,
+                "temperature": agent_data.temperature,
+                "max_tokens": agent_data.max_tokens,
+                "agent_type": agent_data.agent_type
+            }),
+            'created_by': user.id
+        })
+        
+        agent_row = result.fetchone()
+        
+        db.commit()
+        
+        result = {
+            "agent_id": str(agent_row[0]),
+            "name": agent_row[1],
+            "description": agent_row[2],
+            "status": agent_row[3],
+            "tenant_id": tenant_id,
+            "user_id": str(user.id),
+            "config": agent_row[4],
+            "created_at": agent_row[5].isoformat(),
+            "account_type": "individual" if is_individual else "organization"
+        }
+        
+        db.close()
+        logger.info(f"Agent created: {agent_id} for user {user_id} in tenant {tenant_id}")
+        return result
+        
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        if 'db' in locals():
+            db.rollback()
+            db.close()
+        logger.error(f"Agent creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Agent creation failed: {str(e)}")
+
+@app.get("/agents")
+async def get_agents(request: Request):
+    """Get agents with tenant isolation"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        tenant_id = payload.get("tenant_id")
+        
+        if not all([user_id, tenant_id]):
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+        # Check both databases using raw SQL
+        from sqlalchemy import text
+        agents = []
+        
+        # Check org database
+        org_db = next(get_org_db())
+        org_query = text("SELECT id, name, description, status, config, created_at, created_by FROM agents WHERE tenant_id = :tenant_id")
+        org_result = org_db.execute(org_query, {'tenant_id': tenant_id})
+        org_agents = org_result.fetchall()
+        org_db.close()
+        
+        # Check individual database
+        ind_db = next(get_individual_db())
+        ind_result = ind_db.execute(org_query, {'tenant_id': tenant_id})
+        ind_agents = ind_result.fetchall()
+        ind_db.close()
+        
+        all_agents = list(org_agents) + list(ind_agents)
+        
+        return {
+            "agents": [
+                {
+                    "agent_id": str(agent[0]),
+                    "name": agent[1],
+                    "description": agent[2],
+                    "status": agent[3],
+                    "tenant_id": tenant_id,
+                    "user_id": str(agent[5]) if agent[5] else None,
+                    "config": agent[4],
+                    "created_at": agent[5].isoformat() if agent[5] else None
+                } for agent in all_agents
+            ],
+            "total": len(all_agents),
+            "tenant_id": tenant_id
+        }
+        
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Get agents failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Get agents failed: {str(e)}")
+
+@app.post("/agents/{agent_id}/start")
+async def start_agent(agent_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        from sqlalchemy import text
+        update_query = text("UPDATE agents SET status = 'running' WHERE id = :agent_id AND tenant_id = :tenant_id")
+        
+        org_db = next(get_org_db())
+        result = org_db.execute(update_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            org_db.commit()
+            org_db.close()
+            return {"message": "Agent started", "agent_id": agent_id, "status": "running"}
+        org_db.close()
+        
+        ind_db = next(get_individual_db())
+        result = ind_db.execute(update_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            ind_db.commit()
+            ind_db.close()
+            return {"message": "Agent started", "agent_id": agent_id, "status": "running"}
+        ind_db.close()
+        
+        raise HTTPException(status_code=404, detail="Agent not found")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.post("/agents/{agent_id}/stop")
+async def stop_agent(agent_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        from sqlalchemy import text
+        update_query = text("UPDATE agents SET status = 'idle' WHERE id = :agent_id AND tenant_id = :tenant_id")
+        
+        org_db = next(get_org_db())
+        result = org_db.execute(update_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            org_db.commit()
+            org_db.close()
+            return {"message": "Agent stopped", "agent_id": agent_id, "status": "idle"}
+        org_db.close()
+        
+        ind_db = next(get_individual_db())
+        result = ind_db.execute(update_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            ind_db.commit()
+            ind_db.close()
+            return {"message": "Agent stopped", "agent_id": agent_id, "status": "idle"}
+        ind_db.close()
+        
+        raise HTTPException(status_code=404, detail="Agent not found")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.delete("/agents/{agent_id}")
+async def delete_agent(agent_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        from sqlalchemy import text
+        delete_query = text("DELETE FROM agents WHERE id = :agent_id AND tenant_id = :tenant_id")
+        
+        org_db = next(get_org_db())
+        result = org_db.execute(delete_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            org_db.commit()
+            org_db.close()
+            return {"message": "Agent deleted", "agent_id": agent_id}
+        org_db.close()
+        
+        ind_db = next(get_individual_db())
+        result = ind_db.execute(delete_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        if result.rowcount > 0:
+            ind_db.commit()
+            ind_db.close()
+            return {"message": "Agent deleted", "agent_id": agent_id}
+        ind_db.close()
+        
+        raise HTTPException(status_code=404, detail="Agent not found")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.get("/health")
 async def health_check():

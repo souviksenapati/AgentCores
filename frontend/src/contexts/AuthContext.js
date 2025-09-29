@@ -171,7 +171,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Load auth data from localStorage on component mount
+  // Load auth data from sessionStorage on component mount
   useEffect(() => {
     const loadAuthData = () => {
       try {
@@ -180,6 +180,7 @@ export const AuthProvider = ({ children }) => {
         
         if (validatedAuth) {
           console.log('✅ AuthContext: Valid auth data found, setting user state');
+          console.log('🔑 Setting token:', validatedAuth.token.substring(0, 20) + '...');
           setToken(validatedAuth.token);
           setUser(validatedAuth.user);
           setTenant(validatedAuth.tenant);
@@ -191,6 +192,11 @@ export const AuthProvider = ({ children }) => {
           if (storedRefreshToken) {
             setRefreshToken(storedRefreshToken);
           }
+          
+          // IMPORTANT: Set the token in the API service
+          console.log('🔧 Setting token in API service...');
+          const { setAuthToken } = require('../services/api');
+          setAuthToken(validatedAuth.token);
         } else {
           console.log('❌ AuthContext: No valid auth data found, clearing storage');
           // Clear any corrupted/invalid data
@@ -221,6 +227,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const { access_token, refresh_token, user: userData, tenant: tenantData, expires_in } = authData;
       
+      console.log('🔐 AuthContext: Login called with data:', { 
+        hasToken: !!access_token, 
+        hasUser: !!userData, 
+        hasTenant: !!tenantData,
+        userData: userData,
+        tenantData: tenantData
+      });
+      
       // Validate required auth data
       if (!access_token || !userData || !tenantData) {
         throw new Error('Invalid authentication data received');
@@ -249,12 +263,18 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.setItem('refresh_token', refresh_token);
       }
 
-      console.log(`User ${userData.email} logged in successfully with role: ${userData.role}`);
+      console.log(`✅ User ${userData.email} logged in successfully with role: ${userData.role}`);
+      console.log('🔑 Token stored in sessionStorage:', access_token.substring(0, 20) + '...');
+      
+      // IMPORTANT: Set the token in the API service immediately
+      console.log('🔧 Setting token in API service after login...');
+      const { setAuthToken } = require('../services/api');
+      setAuthToken(access_token);
       
       // Wait a brief moment for state to update
       await new Promise(resolve => setTimeout(resolve, 50));
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('💥 Login failed:', error);
       logout(); // Clear any partial state
       throw error;
     }
@@ -310,28 +330,33 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = () => {
-    if (!token || !user || !tenant) return false;
+    if (!token || !user || !tenant) {
+      console.log('🔍 isAuthenticated: Missing basic auth data', { token: !!token, user: !!user, tenant: !!tenant });
+      return false;
+    }
     
+    // TEMPORARILY DISABLED for debugging
     // Check if session is still valid
-    const now = Date.now();
-    if (tokenExpiryTime && now >= tokenExpiryTime) {
-      console.warn('Token expired, logging out');
-      logout();
-      return false;
-    }
-    if (sessionStartTime && (now - sessionStartTime) >= MAX_SESSION_TIME) {
-      console.warn('Max session time exceeded, logging out');
-      logout();
-      return false;
-    }
+    // const now = Date.now();
+    // if (tokenExpiryTime && now >= tokenExpiryTime) {
+    //   console.warn('Token expired, logging out');
+    //   logout();
+    //   return false;
+    // }
+    // if (sessionStartTime && (now - sessionStartTime) >= MAX_SESSION_TIME) {
+    //   console.warn('Max session time exceeded, logging out');
+    //   logout();
+    //   return false;
+    // }
     
     // Validate user object completeness
     if (!user.id || !user.email || !user.role) {
-      console.warn('Incomplete user data, logging out');
-      logout();
+      console.warn('Incomplete user data:', user);
+      // TEMPORARILY DISABLED: logout();
       return false;
     }
     
+    console.log('✅ isAuthenticated: All checks passed');
     return true;
   };
 

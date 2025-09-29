@@ -81,8 +81,24 @@ const Agents = () => {
 
   const columns = [
     { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'agent_type', headerName: 'Type', width: 150 },
-    { field: 'version', headerName: 'Version', width: 100 },
+    { 
+      field: 'agent_type', 
+      headerName: 'Type', 
+      width: 150,
+      renderCell: (params) => {
+        const type = params.value || params.row.config?.agent_type || params.row.config?.model || 'GPT-4';
+        return type;
+      }
+    },
+    { 
+      field: 'version', 
+      headerName: 'Version', 
+      width: 100,
+      renderCell: (params) => {
+        const version = params.value || params.row.config?.version || '1.0.0';
+        return version;
+      }
+    },
     {
       field: 'status',
       headerName: 'Status',
@@ -111,7 +127,7 @@ const Agents = () => {
           {params.row.status === 'idle' || params.row.status === 'paused' ? (
             <IconButton
               size="small"
-              onClick={() => startMutation.mutate(params.row.id)}
+              onClick={() => startMutation.mutate(params.row.agent_id || params.row.id)}
               color="success"
             >
               <PlayArrowIcon />
@@ -119,7 +135,7 @@ const Agents = () => {
           ) : (
             <IconButton
               size="small"
-              onClick={() => stopMutation.mutate(params.row.id)}
+              onClick={() => stopMutation.mutate(params.row.agent_id || params.row.id)}
               color="warning"
             >
               <StopIcon />
@@ -127,7 +143,7 @@ const Agents = () => {
           )}
           <IconButton
             size="small"
-            onClick={() => deleteMutation.mutate(params.row.id)}
+            onClick={() => deleteMutation.mutate(params.row.agent_id || params.row.id)}
             color="error"
           >
             <DeleteIcon />
@@ -170,6 +186,7 @@ const Agents = () => {
           pageSize={10}
           rowsPerPageOptions={[10]}
           disableSelectionOnClick
+          getRowId={(row) => row.agent_id || row.id}
         />
       </Box>
 

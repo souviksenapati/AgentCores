@@ -23,8 +23,10 @@ let tenantSubdomain = null;
 export const setAuthToken = (token) => {
   authToken = token;
   if (token) {
+    console.log('🔑 API: Setting auth token:', token.substring(0, 20) + '...');
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
+    console.log('🚫 API: Clearing auth token');
     delete api.defaults.headers.common['Authorization'];
   }
 };
@@ -67,10 +69,10 @@ const sanitizeRequestData = (data) => {
   return sanitized;
 };
 
-// Initialize auth from localStorage
+// Initialize auth from sessionStorage (matches AuthContext)
 const initializeAuth = () => {
-  const token = localStorage.getItem('auth_token');
-  const tenant = localStorage.getItem('tenant_data');
+  const token = sessionStorage.getItem('auth_token');
+  const tenant = sessionStorage.getItem('tenant_data');
   
   if (token) {
     setAuthToken(token);
@@ -96,13 +98,18 @@ api.interceptors.request.use(
     config.headers['X-Request-ID'] = generateRequestId();
     
     // Ensure fresh token on each request
-    const currentToken = localStorage.getItem('auth_token');
+    const currentToken = sessionStorage.getItem('auth_token');
     if (currentToken && currentToken !== authToken) {
+      console.log('🔄 API: Refreshing token from sessionStorage');
       setAuthToken(currentToken);
     }
     
+    // Debug: Log current auth header
+    console.log('🔍 API Request:', config.method?.toUpperCase(), config.url);
+    console.log('🔑 Auth header:', config.headers.Authorization ? 'Present' : 'Missing');
+    
     // Ensure fresh tenant context
-    const currentTenant = localStorage.getItem('tenant_data');
+    const currentTenant = sessionStorage.getItem('tenant_data');
     if (currentTenant) {
       try {
         const tenantData = JSON.parse(currentTenant);
@@ -167,7 +174,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       // Security: Clear auth data on authentication failure
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = sessionStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
           const response = await authAPI.refreshToken(refreshToken);
@@ -175,8 +182,8 @@ api.interceptors.response.use(
           
           // Update stored token with expiry
           const expiryTime = Date.now() + ((expires_in || 3600) * 1000);
-          localStorage.setItem('auth_token', access_token);
-          localStorage.setItem('token_expiry', expiryTime.toString());
+          sessionStorage.setItem('auth_token', access_token);
+          sessionStorage.setItem('token_expiry', expiryTime.toString());
           setAuthToken(access_token);
           
           // Retry original request
@@ -185,14 +192,14 @@ api.interceptors.response.use(
         } catch (refreshError) {
           // Refresh failed, clear all auth data and redirect
           console.error('Token refresh failed:', refreshError);
-          localStorage.clear();
+          sessionStorage.clear();
           // TEMPORARILY DISABLED: window.location.href = '/login?reason=session_expired';
           console.log('🚨 API INTERCEPTOR: Login redirect disabled for debugging');
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token, clear data and redirect
-        localStorage.clear();
+        sessionStorage.clear();
         // TEMPORARILY DISABLED: window.location.href = '/login?reason=auth_required';
         console.log('🚨 API INTERCEPTOR: Auth required redirect disabled for debugging');
       }
