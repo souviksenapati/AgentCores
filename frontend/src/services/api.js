@@ -315,6 +315,18 @@ export const agentAPI = {
     if (!id) return Promise.reject(new Error('Missing agent ID'));
     return api.get(`/agents/${encodeURIComponent(id)}/tasks`, { params: sanitizeRequestData(params) });
   },
+  chat: (id, message) => {
+    if (!id || !message) return Promise.reject(new Error('Missing agent ID or message'));
+    return api.post(`/agents/${encodeURIComponent(id)}/chat`, { message, agent_id: id });
+  },
+  getChatHistory: (id, limit = 50) => {
+    if (!id) return Promise.reject(new Error('Missing agent ID'));
+    return api.get(`/agents/${encodeURIComponent(id)}/chat/history`, { params: { limit } });
+  },
+  getAvailableForConnection: (id) => {
+    if (!id) return Promise.reject(new Error('Missing agent ID'));
+    return api.get(`/agents/available/${encodeURIComponent(id)}`);
+  },
 };
 
 // Enhanced Task API calls with validation

@@ -291,6 +291,11 @@ class Agent(Base, TenantMixin, TimestampMixin):
     
     # Agent configuration (stored as JSON for flexibility)
     config = Column(JSON, nullable=False)
+    model = Column(String(200), default="openrouter/meta-llama/llama-3.2-3b-instruct:free")
+    instructions = Column(Text, default="You are a helpful AI assistant.")
+    temperature = Column(Float, default=0.7)
+    max_tokens = Column(Integer, default=1000)
+    connected_agents = Column(JSON, default=list)
     
     # Template reference
     template_id = Column(String(100), nullable=True)

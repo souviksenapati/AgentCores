@@ -41,10 +41,15 @@ class AgentBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     agent_type: str = Field(..., description="Type of agent (gpt-4, claude, custom)")
+    model: str = Field(default="openrouter/anthropic/claude-3-haiku")
+    instructions: Optional[str] = Field(default="You are a helpful AI assistant.")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=1000, ge=1, le=8000)
     version: str = Field(default="1.0.0")
     configuration: Optional[Dict[str, Any]] = Field(default_factory=dict)
     capabilities: Optional[List[str]] = Field(default_factory=list)
     resources: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    connected_agents: Optional[List[str]] = Field(default_factory=list)
 
 class AgentCreate(AgentBase):
     pass
@@ -63,6 +68,7 @@ class Agent(AgentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_active: Optional[datetime] = None
+    created_by: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -118,6 +124,23 @@ class TaskExecution(TaskExecutionBase):
 
     class Config:
         from_attributes = True
+
+# Chat Schemas
+class ChatMessage(BaseModel):
+    id: str
+    agent_id: str
+    message: str
+    sender: str  # 'user' or 'agent'
+    timestamp: datetime
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=5000)
+    agent_id: str
+
+class ChatResponse(BaseModel):
+    message: ChatMessage
+    response: ChatMessage
 
 # Response Schemas
 class AgentListResponse(BaseModel):

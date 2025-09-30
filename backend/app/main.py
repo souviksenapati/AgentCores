@@ -629,6 +629,179 @@ async def delete_agent(agent_id: str, request: Request):
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# Chat endpoints
+class ChatRequest(BaseModel):
+    message: str
+    agent_id: str
+
+@app.post("/agents/{agent_id}/chat")
+async def chat_with_agent(agent_id: str, chat_request: ChatRequest, request: Request):
+    """Chat with an agent"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        tenant_id = payload.get("tenant_id")
+        if not all([user_id, tenant_id]):
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Get agent from database
+        from sqlalchemy import text
+        agent_query = text("SELECT id, name, config FROM agents WHERE id = :agent_id AND tenant_id = :tenant_id")
+        
+        agent = None
+        org_db = next(get_org_db())
+        result = org_db.execute(agent_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+        agent_row = result.fetchone()
+        if agent_row:
+            agent = agent_row
+        org_db.close()
+        
+        if not agent:
+            ind_db = next(get_individual_db())
+            result = ind_db.execute(agent_query, {'agent_id': agent_id, 'tenant_id': tenant_id})
+            agent_row = result.fetchone()
+            if agent_row:
+                agent = agent_row
+            ind_db.close()
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Get agent response using OpenRouter
+        import httpx
+        import os
+        
+        config = json.loads(agent[2]) if isinstance(agent[2], str) else agent[2]
+        model = config.get('model', 'openrouter/meta-llama/llama-3.2-3b-instruct:free')
+        instructions = config.get('instructions', 'You are a helpful AI assistant.')
+        temperature = config.get('temperature', 0.7)
+        max_tokens = config.get('max_tokens', 1000)
+        
+        headers = {
+            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY', 'sk-or-v1-your-key-here')}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "AgentCores"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": instructions},
+                {"role": "user", "content": chat_request.message}
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            
+            if response.status_code != 200:
+                agent_response = f"I apologize, but I encountered an error: {response.status_code}"
+            else:
+                result = response.json()
+                agent_response = result["choices"][0]["message"]["content"]
+        
+        return {
+            "message": {
+                "id": str(uuid.uuid4()),
+                "agent_id": agent_id,
+                "message": chat_request.message,
+                "sender": "user",
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            "response": {
+                "id": str(uuid.uuid4()),
+                "agent_id": agent_id,
+                "message": agent_response,
+                "sender": "agent",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        }
+        
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Chat failed: {str(e)}")
+        return {
+            "message": {
+                "id": str(uuid.uuid4()),
+                "agent_id": agent_id,
+                "message": chat_request.message,
+                "sender": "user",
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            "response": {
+                "id": str(uuid.uuid4()),
+                "agent_id": agent_id,
+                "message": f"I apologize, but I encountered an error: {str(e)}",
+                "sender": "agent",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        }
+
+@app.get("/agents/{agent_id}/chat/history")
+async def get_chat_history(agent_id: str, request: Request):
+    """Get chat history (placeholder - returns empty for now)"""
+    return {"messages": []}
+
+@app.get("/agents/available/{agent_id}")
+async def get_available_agents_for_connection(agent_id: str, request: Request):
+    """Get available agents for connection"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tenant_id = payload.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        from sqlalchemy import text
+        query = text("SELECT id, name, description, status FROM agents WHERE tenant_id = :tenant_id AND id != :agent_id")
+        
+        agents = []
+        
+        # Check org database
+        org_db = next(get_org_db())
+        result = org_db.execute(query, {'tenant_id': tenant_id, 'agent_id': agent_id})
+        org_agents = result.fetchall()
+        org_db.close()
+        
+        # Check individual database
+        ind_db = next(get_individual_db())
+        result = ind_db.execute(query, {'tenant_id': tenant_id, 'agent_id': agent_id})
+        ind_agents = result.fetchall()
+        ind_db.close()
+        
+        all_agents = list(org_agents) + list(ind_agents)
+        
+        return {
+            "agents": [
+                {
+                    "id": str(agent[0]),
+                    "name": agent[1],
+                    "description": agent[2],
+                    "status": agent[3]
+                } for agent in all_agents
+            ]
+        }
+        
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}

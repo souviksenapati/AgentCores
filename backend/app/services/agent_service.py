@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import uuid
 from loguru import logger
 
-from app.models.database import Agent, Task, Tenant, AgentStatus, TaskStatus, TenantStatus
+from app.models.database import Task, Tenant, AgentStatus, TaskStatus, TenantStatus
 from app.schemas import AgentCreate, AgentUpdate, TaskCreate, TaskUpdate
 from app.core.interfaces import (
     AgentServiceInterface, AgentConfig, TaskRequest, TaskResult,
@@ -49,29 +49,29 @@ class AgentService(AgentServiceInterface):
         try:
             await self._validate_tenant_access(tenant_id, user_id or "system")
             
-            agent_dict = agent_data.model_dump()
-            agent_dict["tenant_id"] = tenant_id
-            if user_id:
-                agent_dict["created_by"] = user_id
+            # Import Agent model here to avoid circular imports
+            from app.models.database import Agent as AgentModel
             
-            db_agent = Agent(**agent_dict)
+            agent_dict = {
+                "name": agent_data.name,
+                "description": agent_data.description,
+                "status": "idle",
+                "config": agent_data.configuration or {},
+                "tenant_id": tenant_id,
+                "user_id": user_id,
+                "model": getattr(agent_data, 'model', 'openrouter/meta-llama/llama-3.2-3b-instruct:free'),
+                "instructions": getattr(agent_data, 'instructions', 'You are a helpful AI assistant.'),
+                "temperature": getattr(agent_data, 'temperature', 0.7),
+                "max_tokens": getattr(agent_data, 'max_tokens', 1000),
+                "connected_agents": getattr(agent_data, 'connected_agents', [])
+            }
+            
+            db_agent = AgentModel(**agent_dict)
             self.db.add(db_agent)
             self.db.commit()
             self.db.refresh(db_agent)
             
-            await self.event_service.emit_event(
-                AgentEvent(
-                    event_type="agent_created",
-                    agent_id=db_agent.id,
-                    tenant_id=tenant_id,
-                    metadata={
-                        "agent_type": db_agent.agent_type,
-                        "created_by": user_id or "system"
-                    }
-                )
-            )
-            
-            logger.info(f"Enterprise agent {db_agent.id} created for tenant {tenant_id}")
+            logger.info(f"Enterprise agent {db_agent.agent_id} created for tenant {tenant_id}")
             return db_agent
             
         except Exception as e:
@@ -143,24 +143,50 @@ class AgentService(AgentServiceInterface):
 
     async def get_agent(self, agent_id: str, tenant_id: str) -> Optional[Agent]:
         """Get agent by ID within tenant"""
-        return self.db.query(Agent).filter(
-            Agent.id == agent_id,
-            Agent.tenant_id == tenant_id
+        from app.models.database import Agent as AgentModel
+        return self.db.query(AgentModel).filter(
+            AgentModel.agent_id == agent_id,
+            AgentModel.tenant_id == tenant_id
         ).first()
 
     async def list_agents(self, tenant_id: str, user_id: str) -> List[Dict[str, Any]]:
         """List agents for tenant"""
-        agents = self.db.query(Agent).filter(Agent.tenant_id == tenant_id).all()
+        from app.models.database import Agent as AgentModel
+        agents = self.db.query(AgentModel).filter(AgentModel.tenant_id == tenant_id).all()
         
         return [
             {
-                "id": agent.id,
+                "id": str(agent.agent_id),
+                "agent_id": str(agent.agent_id),
                 "name": agent.name,
                 "description": agent.description,
-                "agent_type": agent.agent_type,
+                "agent_type": agent.config.get("agent_type", "conversational"),
                 "status": agent.status.value,
+                "model": getattr(agent, 'model', 'openrouter/meta-llama/llama-3.2-3b-instruct:free'),
+                "instructions": getattr(agent, 'instructions', 'You are a helpful AI assistant.'),
+                "temperature": getattr(agent, 'temperature', 0.7),
+                "max_tokens": getattr(agent, 'max_tokens', 1000),
+                "connected_agents": getattr(agent, 'connected_agents', []),
                 "created_at": agent.created_at,
                 "last_active": agent.last_active
+            }
+            for agent in agents
+        ]
+
+    async def get_available_agents_for_connection(self, agent_id: str, tenant_id: str) -> List[Dict[str, Any]]:
+        """Get available agents for connection (excluding self)"""
+        from app.models.database import Agent as AgentModel
+        agents = self.db.query(AgentModel).filter(
+            AgentModel.tenant_id == tenant_id,
+            AgentModel.agent_id != agent_id
+        ).all()
+        
+        return [
+            {
+                "id": str(agent.agent_id),
+                "name": agent.name,
+                "description": agent.description,
+                "status": agent.status.value
             }
             for agent in agents
         ]
@@ -201,9 +227,10 @@ class TaskService:
 
     async def create_task(self, task_data: TaskCreate, tenant_id: str) -> Task:
         """Create a new task"""
-        agent = self.db.query(Agent).filter(
-            Agent.id == task_data.agent_id,
-            Agent.tenant_id == tenant_id
+        from app.models.database import Agent as AgentModel
+        agent = self.db.query(AgentModel).filter(
+            AgentModel.agent_id == task_data.agent_id,
+            AgentModel.tenant_id == tenant_id
         ).first()
         if not agent:
             raise ValueError(f"Agent {task_data.agent_id} not found in tenant {tenant_id}")
@@ -216,13 +243,13 @@ class TaskService:
         self.db.commit()
         self.db.refresh(db_task)
         
-        logger.info(f"Created task {db_task.id} for agent {task_data.agent_id} in tenant {tenant_id}")
+        logger.info(f"Created task {db_task.task_id} for agent {task_data.agent_id} in tenant {tenant_id}")
         return db_task
 
     async def get_task(self, task_id: str, tenant_id: str) -> Optional[Task]:
         """Get task by ID within tenant"""
         return self.db.query(Task).filter(
-            Task.id == task_id,
+            Task.task_id == task_id,
             Task.tenant_id == tenant_id
         ).first()
 

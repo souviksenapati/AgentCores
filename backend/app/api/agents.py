@@ -7,11 +7,13 @@ from app.schemas import (
     Agent, AgentCreate, AgentUpdate, AgentListResponse,
     Task, TaskCreate, TaskUpdate, TaskListResponse,
     TaskExecution, TaskExecutionResponse,
-    AgentStatus, TaskStatus, UserResponse
+    AgentStatus, TaskStatus, UserResponse,
+    ChatRequest, ChatResponse, ChatMessage
 )
 from app.services.agent_service import AgentService, TaskService
 from app.auth import get_current_user, get_tenant_id, require_admin_or_member_role
 from app.models.database import User
+from app.models.chat import ChatMessage as ChatMessageModel
 
 router = APIRouter()
 
@@ -208,3 +210,55 @@ async def get_agent_tasks(
         page=skip // limit + 1,
         size=len(tasks)
     )
+
+# Chat Endpoints
+@router.post("/agents/{agent_id}/chat", response_model=ChatResponse)
+async def chat_with_agent(
+    agent_id: str,
+    chat_request: ChatRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Chat with an agent"""
+    from app.services.chat_service import ChatService
+    
+    service = ChatService(db)
+    return await service.chat_with_agent(
+        agent_id=agent_id,
+        message=chat_request.message,
+        user_id=str(current_user.id),
+        tenant_id=tenant_id
+    )
+
+@router.get("/agents/{agent_id}/chat/history")
+async def get_chat_history(
+    agent_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    tenant_id: str = Depends(get_tenant_id),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get chat history with an agent"""
+    from app.services.chat_service import ChatService
+    
+    service = ChatService(db)
+    messages = await service.get_chat_history(
+        agent_id=agent_id,
+        user_id=str(current_user.id),
+        tenant_id=tenant_id,
+        limit=limit
+    )
+    return {"messages": messages}
+
+@router.get("/agents/available/{agent_id}")
+async def get_available_agents_for_connection(
+    agent_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get available agents for connection (excluding self)"""
+    service = AgentService(db)
+    agents = await service.get_available_agents_for_connection(agent_id, tenant_id)
+    return {"agents": agents}

@@ -15,6 +15,14 @@ import {
   Chip,
   IconButton,
   LinearProgress,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  Tabs,
+  Tab,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
@@ -24,20 +32,31 @@ import EditIcon from '@mui/icons-material/Edit';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ChatIcon from '@mui/icons-material/Chat';
+import CloseIcon from '@mui/icons-material/Close';
+import SendIcon from '@mui/icons-material/Send';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { format } from 'date-fns';
 
 import { agentAPI } from '../services/api';
 
 const Agents = () => {
   const [open, setOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsAgent, setSettingsAgent] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
   const queryClient = useQueryClient();
   const { control, handleSubmit, reset } = useForm();
 
   const { data, isLoading } = useQuery('agents', () => agentAPI.getAll(), {
-    refetchOnWindowFocus: false, // Prevents reload on minimize/maximize
-    refetchOnMount: true,        // Fresh data when navigating back
-    staleTime: 1 * 60 * 1000,   // 1 minute - more frequent for management page
-    cacheTime: 5 * 60 * 1000,   // 5 minutes in memory
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    staleTime: 1 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
   });
 
   const createMutation = useMutation(agentAPI.create, {
@@ -77,6 +96,130 @@ const Agents = () => {
       case 'paused': return 'warning';
       default: return 'default';
     }
+  };
+
+  const openChat = async (agent) => {
+    setSelectedAgent(agent);
+    try {
+      const response = await agentAPI.getChatHistory(agent.agent_id || agent.id);
+      const history = response.data.messages || [];
+      
+      if (history.length === 0) {
+        setMessages([{
+          id: 1,
+          text: `Hello! I'm ${agent.name}. How can I help you today?`,
+          sender: 'agent',
+          timestamp: new Date()
+        }]);
+      } else {
+        setMessages(history.map(msg => ({
+          id: msg.id,
+          text: msg.message,
+          sender: msg.sender,
+          timestamp: new Date(msg.timestamp)
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+      setMessages([{
+        id: 1,
+        text: `Hello! I'm ${agent.name}. How can I help you today?`,
+        sender: 'agent',
+        timestamp: new Date()
+      }]);
+    }
+    setChatOpen(true);
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedAgent) return;
+    
+    const userMessage = {
+      id: Date.now(),
+      text: newMessage,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    const messageToSend = newMessage;
+    setNewMessage('');
+    
+    try {
+      const response = await agentAPI.chat(selectedAgent.agent_id || selectedAgent.id, messageToSend);
+      const agentResponse = {
+        id: response.data.response.id,
+        text: response.data.response.message,
+        sender: 'agent',
+        timestamp: new Date(response.data.response.timestamp)
+      };
+      setMessages(prev => [...prev, agentResponse]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      const errorResponse = {
+        id: Date.now() + 1,
+        text: 'Sorry, I encountered an error processing your message. Please try again.',
+        sender: 'agent',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    }
+  };
+
+  const closeChat = () => {
+    setChatOpen(false);
+    setSelectedAgent(null);
+    setMessages([]);
+    setNewMessage('');
+  };
+
+  const [availableAgents, setAvailableAgents] = useState([]);
+  const [selectedConnections, setSelectedConnections] = useState([]);
+
+  const openSettings = async (agent) => {
+    setSettingsAgent(agent);
+    setSelectedConnections(agent.connected_agents || []);
+    
+    try {
+      const response = await agentAPI.getAvailableForConnection(agent.agent_id || agent.id);
+      setAvailableAgents(response.data.agents || []);
+    } catch (error) {
+      console.error('Failed to load available agents:', error);
+      setAvailableAgents([]);
+    }
+    
+    setSettingsOpen(true);
+    setActiveTab(0);
+  };
+
+  const closeSettings = () => {
+    setSettingsOpen(false);
+    setSettingsAgent(null);
+    setActiveTab(0);
+  };
+
+  const saveSettings = async () => {
+    if (!settingsAgent) return;
+    
+    try {
+      const updateData = {
+        connected_agents: selectedConnections
+      };
+      
+      await agentAPI.update(settingsAgent.agent_id || settingsAgent.id, updateData);
+      queryClient.invalidateQueries('agents');
+      closeSettings();
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  };
+
+  const handleConnectionToggle = (agentId) => {
+    setSelectedConnections(prev => 
+      prev.includes(agentId) 
+        ? prev.filter(id => id !== agentId)
+        : [...prev, agentId]
+    );
   };
 
   const columns = [
@@ -120,15 +263,18 @@ const Agents = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 240,
       sortable: false,
+      align: 'center',
+      headerAlign: 'center',
       renderCell: (params) => (
-        <Box>
+        <Box display="flex" justifyContent="center" alignItems="center" gap={0.5}>
           {params.row.status === 'idle' || params.row.status === 'paused' ? (
             <IconButton
               size="small"
               onClick={() => startMutation.mutate(params.row.agent_id || params.row.id)}
               color="success"
+              title="Start Agent"
             >
               <PlayArrowIcon />
             </IconButton>
@@ -137,14 +283,32 @@ const Agents = () => {
               size="small"
               onClick={() => stopMutation.mutate(params.row.agent_id || params.row.id)}
               color="warning"
+              title="Stop Agent"
             >
               <StopIcon />
             </IconButton>
           )}
           <IconButton
             size="small"
+            onClick={() => openChat(params.row)}
+            color="primary"
+            title="Chat with Agent"
+          >
+            <ChatIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => openSettings(params.row)}
+            color="info"
+            title="Agent Settings"
+          >
+            <SettingsIcon />
+          </IconButton>
+          <IconButton
+            size="small"
             onClick={() => deleteMutation.mutate(params.row.agent_id || params.row.id)}
             color="error"
+            title="Delete Agent"
           >
             <DeleteIcon />
           </IconButton>
@@ -155,7 +319,7 @@ const Agents = () => {
 
   if (isLoading) return <LinearProgress />;
 
-  const agents = data?.data?.agents || [];
+  const agents = data?.agents || data?.data?.agents || [];
 
   return (
     <Box>
@@ -232,11 +396,42 @@ const Agents = () => {
                   <FormControl fullWidth error={!!fieldState.error}>
                     <InputLabel>Agent Type</InputLabel>
                     <Select {...field} label="Agent Type">
-                      <MenuItem value="gpt-4">GPT-4</MenuItem>
-                      <MenuItem value="claude">Claude</MenuItem>
+                      <MenuItem value="conversational">Conversational</MenuItem>
+                      <MenuItem value="analytical">Analytical</MenuItem>
+                      <MenuItem value="creative">Creative</MenuItem>
                       <MenuItem value="custom">Custom</MenuItem>
                     </Select>
                   </FormControl>
+                )}
+              />
+
+              <Controller
+                name="model"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Model</InputLabel>
+                    <Select {...field} label="Model" defaultValue="openrouter/meta-llama/llama-3.2-3b-instruct:free">
+                      <MenuItem value="openrouter/meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</MenuItem>
+                      <MenuItem value="openrouter/meta-llama/llama-3.2-1b-instruct:free">Llama 3.2 1B (Free)</MenuItem>
+                      <MenuItem value="openrouter/qwen/qwen-2-7b-instruct:free">Qwen 2 7B (Free)</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+
+              <Controller
+                name="instructions"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Instructions"
+                    fullWidth
+                    multiline
+                    rows={2}
+                    defaultValue="You are a helpful AI assistant."
+                  />
                 )}
               />
 
@@ -265,6 +460,222 @@ const Agents = () => {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Chat Window Dialog */}
+      <Dialog 
+        open={chatOpen} 
+        onClose={closeChat} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: { height: '600px', display: 'flex', flexDirection: 'column' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">
+            Chat with {selectedAgent?.name}
+          </Typography>
+          <IconButton onClick={closeChat} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0 }}>
+          <Paper 
+            sx={{ 
+              flex: 1, 
+              m: 2, 
+              p: 1, 
+              overflow: 'auto',
+              backgroundColor: '#f5f5f5'
+            }}
+          >
+            <List sx={{ p: 0 }}>
+              {messages.map((message) => (
+                <ListItem 
+                  key={message.id}
+                  sx={{
+                    justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
+                    mb: 1
+                  }}
+                >
+                  <Paper
+                    sx={{
+                      p: 2,
+                      maxWidth: '70%',
+                      backgroundColor: message.sender === 'user' ? '#1976d2' : '#fff',
+                      color: message.sender === 'user' ? '#fff' : '#000'
+                    }}
+                  >
+                    <ListItemText 
+                      primary={message.text}
+                      secondary={format(message.timestamp, 'HH:mm')}
+                      secondaryTypographyProps={{
+                        sx: { color: message.sender === 'user' ? 'rgba(255,255,255,0.7)' : 'text.secondary' }
+                      }}
+                    />
+                  </Paper>
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="Type your message..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            variant="outlined"
+            size="small"
+          />
+          <Button
+            variant="contained"
+            onClick={sendMessage}
+            disabled={!newMessage.trim()}
+            startIcon={<SendIcon />}
+          >
+            Send
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Settings Window Dialog */}
+      <Dialog 
+        open={settingsOpen} 
+        onClose={closeSettings} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: { height: '500px', display: 'flex', flexDirection: 'column' }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 0 }}>
+          <Typography variant="h6">
+            Settings - {settingsAgent?.name}
+          </Typography>
+          <IconButton onClick={closeSettings} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tab label="General" />
+            <Tab label="Properties" />
+            <Tab label="Integration" />
+            <Tab label="Connect with Other Agent" />
+          </Tabs>
+        </Box>
+        
+        <DialogContent sx={{ flex: 1, p: 3 }}>
+          {/* General Tab */}
+          {activeTab === 0 && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Name"
+                defaultValue={settingsAgent?.name}
+                margin="normal"
+              />
+              <TextField
+                fullWidth
+                label="Description"
+                defaultValue={settingsAgent?.description}
+                multiline
+                rows={3}
+                margin="normal"
+              />
+            </Box>
+          )}
+          
+          {/* Properties Tab */}
+          {activeTab === 1 && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Behavior"
+                margin="normal"
+                placeholder="Define agent behavior..."
+              />
+              <TextField
+                fullWidth
+                label="Capabilities"
+                margin="normal"
+                placeholder="List agent capabilities..."
+              />
+              <TextField
+                fullWidth
+                label="Memory"
+                margin="normal"
+                placeholder="Memory settings..."
+              />
+              <TextField
+                fullWidth
+                label="Context Window"
+                margin="normal"
+                placeholder="Context window size..."
+              />
+            </Box>
+          )}
+          
+          {/* Integration Tab */}
+          {activeTab === 2 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>Available Integrations</Typography>
+              <FormControlLabel
+                control={<Checkbox />}
+                label="Google Sheet"
+              />
+              <br />
+              <FormControlLabel
+                control={<Checkbox />}
+                label="Google Ad"
+              />
+              <br />
+              <FormControlLabel
+                control={<Checkbox />}
+                label="Many Products"
+              />
+            </Box>
+          )}
+          
+          {/* Connect with Other Agent Tab */}
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h6" gutterBottom>Connect with Other Agents</Typography>
+              {availableAgents.length === 0 ? (
+                <Typography color="text.secondary">No other agents available for connection.</Typography>
+              ) : (
+                availableAgents.map((agent) => (
+                  <FormControlLabel
+                    key={agent.id}
+                    control={
+                      <Checkbox 
+                        checked={selectedConnections.includes(agent.id)}
+                        onChange={() => handleConnectionToggle(agent.id)}
+                      />
+                    }
+                    label={`${agent.name} - ${agent.description || 'No description'}`}
+                  />
+                ))
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            onClick={saveSettings}
+            color="primary"
+          >
+            Save
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
