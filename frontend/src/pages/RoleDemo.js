@@ -10,7 +10,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
   Accordion,
   AccordionSummary,
   AccordionDetails,

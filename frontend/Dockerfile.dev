@@ -15,6 +15,10 @@ RUN npm install --silent
 # Copy source code
 COPY . .
 
+# Set environment variables to suppress webpack warnings
+ENV GENERATE_SOURCEMAP=false
+ENV DISABLE_ESLINT_PLUGIN=true
+
 # Expose port
 EXPOSE 3000
 

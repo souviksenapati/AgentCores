@@ -14,7 +14,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';

@@ -54,7 +54,6 @@ const CreateAgent = () => {
 
   const createMutation = useMutation(agentAPI.create, {
     onSuccess: (data) => {
-      console.log('✅ Agent created successfully:', data);
       queryClient.invalidateQueries('agents');
       navigate('/agents');
     },
@@ -73,7 +72,6 @@ const CreateAgent = () => {
   };
 
   const updateField = (fieldName, value) => {
-    console.log(`Updating ${fieldName}:`, value);
     setFormData(prev => ({
       ...prev,
       [fieldName]: value
@@ -81,8 +79,6 @@ const CreateAgent = () => {
   };
 
   const onSubmit = () => {
-    console.log('🚀 Form submitted with data:', formData);
-    
     const agentData = {
       name: formData.name || 'Unnamed Agent',
       description: formData.description || 'No description provided',
@@ -102,7 +98,6 @@ const CreateAgent = () => {
       },
     };
     
-    console.log('📤 Sending agent data to API:', agentData);
     setError('');
     createMutation.mutate(agentData);
   };
@@ -314,7 +309,6 @@ const CreateAgent = () => {
         );
 
       case 3:
-        console.log('🔍 Review step - formData:', formData);
         return (
           <Grid container spacing={3}>
             <Grid item xs={12}>

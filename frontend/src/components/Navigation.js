@@ -8,7 +8,6 @@ import {
   Box,
   Menu,
   MenuItem,
-  Avatar,
   Divider,
   Chip,
 } from '@mui/material';

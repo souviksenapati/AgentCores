@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203, W503, E501
+exclude = 
+    .git,
+    __pycache__,
+    migrations,
+    .venv,
+    venv,
+    .tox,
+    .eggs,
+    *.egg-info,
+    build,
+    dist
+
+per-file-ignores =
+    __init__.py:F401
+    tests/*:S101
+
+[bandit]
+exclude_dirs = tests,migrations,venv,.venv
+skips = B101,B601

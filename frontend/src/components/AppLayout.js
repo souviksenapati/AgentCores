@@ -216,7 +216,7 @@ export default function AppLayout({ children }) {
     </Box>
   );
 
-  const container = typeof window !== undefined ? () => window.document.body : undefined;
+  const container = typeof window !== 'undefined' ? () => window.document.body : undefined;
 
   return (
     <Box sx={{ display: 'flex' }}>

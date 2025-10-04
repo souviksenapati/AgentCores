@@ -104,9 +104,7 @@ api.interceptors.request.use(
       setAuthToken(currentToken);
     }
     
-    // Debug: Log current auth header
-    console.log('🔍 API Request:', config.method?.toUpperCase(), config.url);
-    console.log('🔑 Auth header:', config.headers.Authorization ? 'Present' : 'Missing');
+    // Request logging removed for production
     
     // Ensure fresh tenant context
     const currentTenant = sessionStorage.getItem('tenant_data');
@@ -147,13 +145,7 @@ api.interceptors.response.use(
     // Security: Validate response structure
     if (response.data && typeof response.data === 'object') {
       // Log response for security monitoring (excluding sensitive data)
-      const logData = {
-        status: response.status,
-        url: response.config.url,
-        method: response.config.method,
-        requestId: response.config.headers['X-Request-ID']
-      };
-      console.debug('API Response:', logData);
+      // API response logging disabled for production
     }
     
     return response;
@@ -194,14 +186,12 @@ api.interceptors.response.use(
           console.error('Token refresh failed:', refreshError);
           sessionStorage.clear();
           // TEMPORARILY DISABLED: window.location.href = '/login?reason=session_expired';
-          console.log('🚨 API INTERCEPTOR: Login redirect disabled for debugging');
           return Promise.reject(refreshError);
         }
       } else {
         // No refresh token, clear data and redirect
         sessionStorage.clear();
         // TEMPORARILY DISABLED: window.location.href = '/login?reason=auth_required';
-        console.log('🚨 API INTERCEPTOR: Auth required redirect disabled for debugging');
       }
     }
     
@@ -209,7 +199,6 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       console.error('Access forbidden - insufficient permissions');
       // TEMPORARILY DISABLED for debugging: window.location.href = '/unauthorized?reason=insufficient_permissions';
-      console.log('🚨 API INTERCEPTOR: 403 redirect disabled for debugging');
     }
     
     // Handle rate limiting

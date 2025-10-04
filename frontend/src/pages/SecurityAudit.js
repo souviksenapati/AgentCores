@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -20,11 +20,6 @@ import {
   TableRow,
   Paper,
   LinearProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  TextField,
-  Divider,
 } from '@mui/material';
 import {
   Security as SecurityIcon,
@@ -32,11 +27,7 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   Shield as ShieldIcon,
-  Lock as LockIcon,
-  VpnKey as KeyIcon,
-  Visibility as VisibilityIcon,
   BugReport as BugIcon,
-  ExpandMore as ExpandMoreIcon,
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
@@ -92,11 +83,7 @@ export default function SecurityAudit() {
     }
   ];
 
-  useEffect(() => {
-    runSecurityAudit();
-  }, []);
-
-  const runSecurityAudit = async () => {
+  const runSecurityAudit = useCallback(async () => {
     setLoading(true);
     const results = {};
 
@@ -134,7 +121,12 @@ export default function SecurityAudit() {
     });
     
     setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    runSecurityAudit();
+  }, [runSecurityAudit]);
 
   const testAuthBypass = async () => {
     try {
@@ -291,7 +283,7 @@ export default function SecurityAudit() {
       }
 
       // Test SQL injection patterns (for future database inputs)
-      const sqlTestString = "'; DROP TABLE users; --";
+      // Note: SQL injection testing would be implemented here for database inputs
       
       return {
         status: 'pass',
@@ -393,14 +385,7 @@ export default function SecurityAudit() {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pass': return 'success';
-      case 'fail': return 'error';
-      case 'warning': return 'warning';
-      default: return 'default';
-    }
-  };
+
 
   const getStatusIcon = (status) => {
     switch (status) {

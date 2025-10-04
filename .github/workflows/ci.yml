@@ -1,0 +1,502 @@
+name: AgentCores CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  statuses: write
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Check which parts of codebase changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      docker: ${{ steps.changes.outputs.docker }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          backend:
+            - 'backend/**'
+            - '!backend/venv/**'
+            - '!backend/__pycache__/**'
+            - '!backend/**/__pycache__/**'
+            - '!backend/**/build/**'
+            - '!backend/**/.pytest_cache/**'
+            - '!backend/**/.mypy_cache/**'
+            - '!backend/**/htmlcov/**'
+            - '!backend/**/coverage/**'
+            - '!backend/**/*.coverage'
+            - '!backend/**/coverage.xml'
+            - '!backend/**/junit.xml'
+            - '!backend/**/test-results/**'
+            - '!backend/**/bandit-report.json'
+            - '!backend/**/*.pyc'
+            - '!backend/**/*.pyo'
+            - '!backend/**/*.pyd'
+            - '!backend/**/*.db'
+            - 'requirements.txt'
+            - '.github/workflows/ci.yml'
+          frontend:
+            - 'frontend/**'
+            - '!frontend/node_modules/**'
+            - '!frontend/build/**'
+            - '!frontend/coverage/**'
+            - '!frontend/.nyc_output/**'
+            - '!frontend/test-results/**'
+            - '!frontend/junit.xml'
+            - '!frontend/.eslintcache'
+            - '!frontend/**/*.log'
+            - '!frontend/**/*.tsbuildinfo'
+            - '!frontend/**/lcov.info'
+            - '!frontend/**/coverage.lcov'
+            - 'package.json'
+            - 'package-lock.json'
+          docker:
+            - 'Dockerfile*'
+            - 'docker-compose*.yml'
+            - '!**/node_modules/**'
+            - '!**/venv/**'
+            - '!**/build/**'
+            - '!**/coverage/**'
+            - '!**/.pytest_cache/**'
+            - '!**/.mypy_cache/**'
+            - '!**/test-results/**'
+            - '!**/*.db'
+
+  # Backend Testing and Quality Checks
+  backend-test:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio flake8 black isort mypy bandit
+
+    - name: Code Quality - Black formatter check
+      working-directory: ./backend
+      run: |
+        echo "🎨 Checking code formatting with Black..."
+        black --check --diff .
+        
+    - name: Code Quality - Import sorting check
+      working-directory: ./backend
+      run: |
+        echo "📦 Checking import sorting with isort..."
+        isort --check-only --diff .
+
+    - name: Code Quality - Flake8 linting
+      working-directory: ./backend
+      run: |
+        echo "🔍 Running flake8 linter..."
+        flake8 app/ --max-line-length=88 --extend-ignore=E203,W503 --count --statistics
+
+    - name: Code Quality - Type checking
+      working-directory: ./backend
+      run: |
+        echo "🔬 Running mypy type checker..."
+        mypy app/ --ignore-missing-imports
+
+    - name: Security - Bandit vulnerability scan
+      working-directory: ./backend
+      run: |
+        echo "🔒 Running security scan with Bandit..."
+        bandit -r app/ -f json -o bandit-report.json -ll
+        
+    - name: Unit Tests
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test_secret_key_for_ci_pipeline
+        OPENROUTER_API_KEY: test_api_key_placeholder
+      run: |
+        echo "🧪 Running backend unit tests..."
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=80
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: backend-test-results
+        path: |
+          backend/htmlcov/
+          backend/bandit-report.json
+
+  # Frontend Testing and Quality Checks
+  frontend-test:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: |
+        echo "📦 Installing frontend dependencies..."
+        npm ci
+
+    - name: Code Quality - ESLint
+      working-directory: ./frontend
+      run: |
+        echo "🔍 Running ESLint..."
+        npm run lint
+
+    - name: Code Quality - Prettier format check
+      working-directory: ./frontend
+      run: |
+        echo "🎨 Checking code formatting with Prettier..."
+        npm run format:check
+
+    - name: Unit Tests
+      working-directory: ./frontend
+      run: |
+        echo "🧪 Running frontend unit tests..."
+        npm run test -- --coverage --watchAll=false --verbose
+
+    - name: Build Test
+      working-directory: ./frontend
+      run: |
+        echo "🏗️ Testing frontend build..."
+        npm run build
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build
+        path: frontend/build/
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Upload security artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: trivy-results.sarif
+
+  # Docker Build and Test
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    if: always() && (needs.backend-test.result == 'success' || needs.backend-test.result == 'skipped') && (needs.frontend-test.result == 'success' || needs.frontend-test.result == 'skipped')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and test Docker containers
+      run: |
+        echo "🐳 Building Docker containers..."
+        docker-compose -f docker-compose.yml build
+        
+        echo "🚀 Starting containers for testing..."
+        docker-compose -f docker-compose.yml up -d
+        
+        echo "⏳ Waiting for services to be ready..."
+        sleep 45
+        
+        echo "🏥 Testing backend health endpoint..."
+        timeout 30 bash -c 'until curl --fail --silent http://localhost:8000/health; do sleep 2; done'
+        
+        echo "🌐 Testing frontend accessibility..."
+        timeout 30 bash -c 'until curl --fail --silent http://localhost:3000; do sleep 2; done'
+        
+        echo "✅ All services are healthy!"
+        
+        echo "🧹 Cleaning up test containers..."
+        docker-compose -f docker-compose.yml down
+
+  # Integration Tests
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run integration tests
+      run: |
+        echo "🔗 Starting full integration test suite..."
+        docker-compose up -d
+        
+        echo "⏳ Waiting for all services to be fully ready..."
+        sleep 60
+        
+        echo "🧪 Running API integration tests..."
+        # Add integration test commands here
+        curl --fail http://localhost:8000/api/v1/health || exit 1
+        curl --fail http://localhost:3000 || exit 1
+        
+        echo "✅ Integration tests completed!"
+        docker-compose down
+
+  # Deploy to Staging (dev branch only)
+  deploy-staging:
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, docker-build, security-scan]
+    environment: staging
+    
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        # Add your staging deployment commands here
+
+  # Deploy to Production (main branch only)
+  deploy-production:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, docker-build, security-scan, integration-test]
+    environment: production
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "🌟 Deploying to production environment..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        # Add your production deployment commands here
+
+  # PR Comment with Results
+  pr-report:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan, docker-build]
+    
+    steps:
+    - name: Comment PR - Success
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { context } = require('@actions/github');
+          const prNumber = context.payload.pull_request.number;
+          
+          const comment = `
+          ## 🎉 CI/CD Pipeline: SUCCESS ✅
+          
+          **All quality gates passed!** This PR is ready for code review.
+          
+          ### 📊 Test Results Summary:
+          - ✅ **Backend Tests**: All unit tests passed with coverage
+          - ✅ **Frontend Tests**: All UI tests passed  
+          - ✅ **Code Quality**: Formatting, linting, and type checking clean
+          - ✅ **Security Scan**: No vulnerabilities detected
+          - ✅ **Docker Build**: Containers build and start successfully
+          
+          ### 🔄 **Merge Process:**
+          1. **Code Review**: Request review from team members
+          2. **Approval**: Get at least 1 approval
+          3. **Merge**: Use "Squash and Merge" to keep history clean
+          
+          ### 🔗 **Pipeline Details:**
+          - **Workflow**: [View Full Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **Commit**: \`${{ github.event.pull_request.head.sha }}\`
+          - **Feature Branch**: \`${{ github.head_ref }}\`
+          - **Target Branch**: \`${{ github.base_ref }}\`
+          
+          ### ✨ Ready for Review!
+          `;
+          
+          await github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Comment PR - Failure  
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { context } = require('@actions/github');
+          const prNumber = context.payload.pull_request.number;
+          
+          // Determine which checks failed
+          const backendStatus = '${{ needs.backend-test.result }}' === 'failure' ? '❌ **Backend Tests**: Failed' : '✅ **Backend Tests**: Passed';
+          const frontendStatus = '${{ needs.frontend-test.result }}' === 'failure' ? '❌ **Frontend Tests**: Failed' : '✅ **Frontend Tests**: Passed';
+          const securityStatus = '${{ needs.security-scan.result }}' === 'failure' ? '❌ **Security Scan**: Issues found' : '✅ **Security Scan**: Clean';
+          const dockerStatus = '${{ needs.docker-build.result }}' === 'failure' ? '❌ **Docker Build**: Failed' : '✅ **Docker Build**: Success';
+          
+          const comment = \`
+          ## ⚠️ CI/CD Pipeline: FAILURE ❌
+          
+          **This PR has issues that must be fixed before merging.**
+          
+          ### 📊 Check Results:
+          \${backendStatus}
+          \${frontendStatus}
+          \${securityStatus}
+          \${dockerStatus}
+          
+          ### 🔧 **How to Fix:**
+          1. **Review the logs**: Click the failed check links below
+          2. **Fix the issues**: Make necessary code changes
+          3. **Push updates**: New commits will trigger re-validation
+          4. **Wait for green**: All checks must pass before merge
+          
+          ### 🔗 **Debug Resources:**
+          - **Full Logs**: [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **Commit**: \`${{ github.event.pull_request.head.sha }}\`
+          
+          ### � **Common Quick Fixes:**
+          \`\`\`bash
+          # Fix Python formatting
+          cd backend && black . && isort .
+          
+          # Fix JavaScript formatting  
+          cd frontend && npm run format
+          
+          # Run tests locally
+          ./run-tests.sh  # or run-tests.bat on Windows
+          \`\`\`
+          
+          **🚫 Merging is blocked until all checks pass.**
+          \`;
+          
+          await github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  # Final Status Check
+  ci-success:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan, docker-build]
+    if: always()
+    
+    steps:
+    - name: Check all jobs status
+      run: |
+        echo "Backend Test: ${{ needs.backend-test.result }}"
+        echo "Frontend Test: ${{ needs.frontend-test.result }}"
+        echo "Security Scan: ${{ needs.security-scan.result }}"
+        echo "Docker Build: ${{ needs.docker-build.result }}"
+        
+        if [[ "${{ needs.backend-test.result }}" == "success" && 
+              ("${{ needs.frontend-test.result }}" == "success" || "${{ needs.frontend-test.result }}" == "skipped") && 
+              "${{ needs.security-scan.result }}" == "success" && 
+              ("${{ needs.docker-build.result }}" == "success" || "${{ needs.docker-build.result }}" == "skipped") ]]; then
+          echo "✅ All critical checks passed!"
+          exit 0
+        else
+          echo "❌ Some critical checks failed!"
+          exit 1
+        fi

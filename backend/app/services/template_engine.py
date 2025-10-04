@@ -4,15 +4,16 @@ Built for MVP simplicity, designed for industry-specific scale.
 """
 
 import json
-import yaml
+import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, Any, List, Optional
-from pathlib import Path
-from dataclasses import dataclass, asdict
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
 
 from app.core.interfaces import AgentConfig
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class IndustryType(Enum):
     Current: Basic industries
     Future: 200+ industry-specific templates
     """
+
     GENERAL = "general"
     CUSTOMER_SERVICE = "customer_service"
     SALES = "sales"
@@ -40,6 +42,7 @@ class IndustryType(Enum):
 
 class TemplateCategory(Enum):
     """Template functional categories"""
+
     CONVERSATIONAL = "conversational"
     ANALYTICAL = "analytical"
     CREATIVE = "creative"
@@ -52,137 +55,136 @@ class TemplateCategory(Enum):
 class AgentTemplate:
     """
     Agent template with enterprise metadata.
-    
+
     Current: Basic template structure
     Future: Complex workflow templates, industry regulations
     """
+
     id: str
     name: str
     description: str
     industry: IndustryType
     category: TemplateCategory
     version: str
-    
+
     # Agent configuration
     config: AgentConfig
-    
+
     # Template metadata
     tags: List[str]
     use_cases: List[str]
     requirements: List[str]
-    
+
     # Enterprise features
     compliance_level: str  # "basic", "enterprise", "regulated"
     security_classification: str  # "public", "internal", "confidential"
     approved_for_production: bool
-    
+
     # Template customization
     customizable_fields: List[str]
     required_integrations: List[str]
-    
+
     # Metadata
     created_at: datetime
     updated_at: datetime
     created_by: str
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert template to dictionary for API responses"""
         template_dict = asdict(self)
         # Convert enums to strings
-        template_dict['industry'] = self.industry.value
-        template_dict['category'] = self.category.value
+        template_dict["industry"] = self.industry.value
+        template_dict["category"] = self.category.value
         # Convert datetime to ISO strings
-        template_dict['created_at'] = self.created_at.isoformat()
-        template_dict['updated_at'] = self.updated_at.isoformat()
+        template_dict["created_at"] = self.created_at.isoformat()
+        template_dict["updated_at"] = self.updated_at.isoformat()
         return template_dict
 
 
 class AgentTemplateEngine:
     """
     Enterprise Agent Template Engine.
-    
+
     Current: File-based templates with basic customization
     Future: Database-backed, industry-specific, AI-generated templates
     """
-    
+
     def __init__(self, templates_dir: str = "templates"):
         self.templates_dir = Path(templates_dir)
         self.templates_dir.mkdir(exist_ok=True)
-        
+
         # In-memory template cache (future: Redis cache)
         self._template_cache: Dict[str, AgentTemplate] = {}
         self._load_default_templates()
-    
+
     async def get_template(self, template_id: str) -> Optional[AgentTemplate]:
         """
         Get template by ID with caching.
-        
+
         Current: Memory cache
         Future: Multi-tier caching, template versioning
         """
         try:
             if template_id in self._template_cache:
                 return self._template_cache[template_id]
-            
+
             # Load from file if not in cache
             template_file = self.templates_dir / f"{template_id}.json"
             if template_file.exists():
                 template = self._load_template_from_file(template_file)
                 self._template_cache[template_id] = template
                 return template
-            
+
             logger.warning(f"Template not found: {template_id}")
             return None
-            
+
         except Exception as e:
             logger.error(f"Failed to get template {template_id}: {str(e)}")
             return None
-    
+
     async def list_templates(
-        self, 
+        self,
         industry: Optional[IndustryType] = None,
         category: Optional[TemplateCategory] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
     ) -> List[AgentTemplate]:
         """
         List templates with filtering.
-        
+
         Current: Basic filtering
         Future: Advanced search, ML-powered recommendations
         """
         try:
             # Ensure all templates are loaded
             await self._load_all_templates()
-            
+
             templates = list(self._template_cache.values())
-            
+
             # Apply filters
             if industry:
                 templates = [t for t in templates if t.industry == industry]
-            
+
             if category:
                 templates = [t for t in templates if t.category == category]
-            
+
             if tags:
                 templates = [t for t in templates if any(tag in t.tags for tag in tags)]
-            
+
             # Sort by name (future: relevance scoring)
             templates.sort(key=lambda t: t.name)
-            
+
             return templates
-            
+
         except Exception as e:
             logger.error(f"Failed to list templates: {str(e)}")
             return []
-    
+
     async def create_agent_from_template(
-        self, 
-        template_id: str, 
-        customizations: Optional[Dict[str, Any]] = None
+        self, template_id: str, customizations: Optional[Dict[str, Any]] = None
     ) -> Optional[AgentConfig]:
         """
         Create agent configuration from template.
-        
+
         Current: Basic field replacement
         Future: Advanced customization, validation, optimization
         """
@@ -190,7 +192,7 @@ class AgentTemplateEngine:
             template = await self.get_template(template_id)
             if not template:
                 return None
-            
+
             # Start with template config
             config = AgentConfig(
                 name=template.config.name,
@@ -200,83 +202,85 @@ class AgentTemplateEngine:
                 temperature=template.config.temperature,
                 max_tokens=template.config.max_tokens,
                 tools=template.config.tools.copy(),
-                metadata=template.config.metadata.copy()
+                metadata=template.config.metadata.copy(),
             )
-            
+
             # Apply customizations
             if customizations:
                 config = self._apply_customizations(config, template, customizations)
-            
+
             # Add template metadata
             config.metadata["template_id"] = template_id
             config.metadata["template_version"] = template.version
             config.metadata["created_from_template"] = datetime.utcnow().isoformat()
-            
+
             return config
-            
+
         except Exception as e:
-            logger.error(f"Failed to create agent from template {template_id}: {str(e)}")
+            logger.error(
+                f"Failed to create agent from template {template_id}: {str(e)}"
+            )
             return None
-    
+
     async def save_template(self, template: AgentTemplate) -> bool:
         """
         Save template to storage.
-        
+
         Current: File-based storage
         Future: Database with versioning, approval workflows
         """
         try:
             template_file = self.templates_dir / f"{template.id}.json"
-            
+
             # Update timestamp
             template.updated_at = datetime.utcnow()
-            
+
             # Save to file
-            with open(template_file, 'w') as f:
+            with open(template_file, "w") as f:
                 json.dump(template.to_dict(), f, indent=2)
-            
+
             # Update cache
             self._template_cache[template.id] = template
-            
+
             logger.info(f"Template saved: {template.id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to save template {template.id}: {str(e)}")
             return False
-    
+
     async def delete_template(self, template_id: str) -> bool:
         """
         Delete template (enterprise: soft delete with audit).
-        
+
         Current: Hard delete
         Future: Soft delete, audit trail, dependency checking
         """
         try:
             template_file = self.templates_dir / f"{template_id}.json"
-            
+
             if template_file.exists():
                 template_file.unlink()
-            
+
             if template_id in self._template_cache:
                 del self._template_cache[template_id]
-            
+
             logger.info(f"Template deleted: {template_id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to delete template {template_id}: {str(e)}")
             return False
-    
+
     async def clone_template(
-        self, 
-        source_template_id: str, 
+        self,
+        source_template_id: str,
         new_template_id: str,
-        customizations: Optional[Dict[str, Any]] = None
+        customizations: Optional[Dict[str, Any]] = None,
     ) -> Optional[AgentTemplate]:
         """
         Clone template with modifications.
-        
+
         Current: Basic cloning
         Future: Intelligent template derivation, change tracking
         """
@@ -284,7 +288,7 @@ class AgentTemplateEngine:
             source_template = await self.get_template(source_template_id)
             if not source_template:
                 return None
-            
+
             # Create new template from source
             new_template = AgentTemplate(
                 id=new_template_id,
@@ -301,7 +305,7 @@ class AgentTemplateEngine:
                     temperature=source_template.config.temperature,
                     max_tokens=source_template.config.max_tokens,
                     tools=source_template.config.tools.copy(),
-                    metadata=source_template.config.metadata.copy()
+                    metadata=source_template.config.metadata.copy(),
                 ),
                 tags=source_template.tags.copy(),
                 use_cases=source_template.use_cases.copy(),
@@ -313,24 +317,26 @@ class AgentTemplateEngine:
                 required_integrations=source_template.required_integrations.copy(),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
-                created_by="system"  # Future: actual user tracking
+                created_by="system",  # Future: actual user tracking
             )
-            
+
             # Apply customizations
             if customizations:
-                new_template = self._apply_template_customizations(new_template, customizations)
-            
+                new_template = self._apply_template_customizations(
+                    new_template, customizations
+                )
+
             # Save the new template
             await self.save_template(new_template)
-            
+
             return new_template
-            
+
         except Exception as e:
             logger.error(f"Failed to clone template {source_template_id}: {str(e)}")
             return None
-    
+
     # Private methods for template management
-    
+
     def _load_default_templates(self):
         """Load default MVP templates"""
         default_templates = [
@@ -339,10 +345,10 @@ class AgentTemplateEngine:
             self._create_content_creator_template(),
             self._create_data_analyst_template(),
         ]
-        
+
         for template in default_templates:
             self._template_cache[template.id] = template
-    
+
     def _create_customer_service_template(self) -> AgentTemplate:
         """Customer service agent template"""
         return AgentTemplate(
@@ -374,14 +380,17 @@ Remember to:
                 temperature=0.7,
                 max_tokens=1000,
                 tools=[],
-                metadata={"purpose": "customer_support", "tone": "friendly_professional"}
+                metadata={
+                    "purpose": "customer_support",
+                    "tone": "friendly_professional",
+                },
             ),
             tags=["customer_service", "support", "conversational"],
             use_cases=[
                 "Answer customer questions",
                 "Troubleshoot basic issues",
                 "Process simple requests",
-                "Provide product information"
+                "Provide product information",
             ],
             requirements=["Access to knowledge base", "Escalation procedures"],
             compliance_level="enterprise",
@@ -391,9 +400,9 @@ Remember to:
             required_integrations=["knowledge_base", "ticketing_system"],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
-            created_by="system"
+            created_by="system",
         )
-    
+
     def _create_sales_assistant_template(self) -> AgentTemplate:
         """Sales assistant agent template"""
         return AgentTemplate(
@@ -426,14 +435,17 @@ Sales Approach:
                 temperature=0.8,
                 max_tokens=1200,
                 tools=[],
-                metadata={"purpose": "sales_support", "tone": "persuasive_professional"}
+                metadata={
+                    "purpose": "sales_support",
+                    "tone": "persuasive_professional",
+                },
             ),
             tags=["sales", "lead_qualification", "conversational"],
             use_cases=[
                 "Qualify inbound leads",
                 "Answer product questions",
                 "Schedule sales meetings",
-                "Follow up with prospects"
+                "Follow up with prospects",
             ],
             requirements=["CRM integration", "Product knowledge base"],
             compliance_level="enterprise",
@@ -443,9 +455,9 @@ Sales Approach:
             required_integrations=["crm", "calendar", "product_catalog"],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
-            created_by="system"
+            created_by="system",
         )
-    
+
     def _create_content_creator_template(self) -> AgentTemplate:
         """Content creation agent template"""
         return AgentTemplate(
@@ -478,14 +490,14 @@ Best Practices:
                 temperature=0.9,
                 max_tokens=2000,
                 tools=[],
-                metadata={"purpose": "content_creation", "tone": "creative_engaging"}
+                metadata={"purpose": "content_creation", "tone": "creative_engaging"},
             ),
             tags=["content", "marketing", "creative", "writing"],
             use_cases=[
                 "Write blog posts",
                 "Create social media content",
                 "Draft email campaigns",
-                "Generate product descriptions"
+                "Generate product descriptions",
             ],
             requirements=["Brand guidelines", "Style guide"],
             compliance_level="basic",
@@ -495,9 +507,9 @@ Best Practices:
             required_integrations=["cms", "social_media", "brand_assets"],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
-            created_by="system"
+            created_by="system",
         )
-    
+
     def _create_data_analyst_template(self) -> AgentTemplate:
         """Data analysis agent template"""
         return AgentTemplate(
@@ -530,31 +542,35 @@ Analysis Approach:
                 temperature=0.3,
                 max_tokens=1500,
                 tools=[],
-                metadata={"purpose": "data_analysis", "tone": "analytical_precise"}
+                metadata={"purpose": "data_analysis", "tone": "analytical_precise"},
             ),
             tags=["analytics", "data", "insights", "reporting"],
             use_cases=[
                 "Analyze business metrics",
                 "Create data reports",
                 "Identify trends and patterns",
-                "Generate insights and recommendations"
+                "Generate insights and recommendations",
             ],
             requirements=["Data access", "Analytics tools"],
             compliance_level="enterprise",
             security_classification="confidential",
             approved_for_production=True,
-            customizable_fields=["system_prompt", "analysis_methods", "reporting_format"],
+            customizable_fields=[
+                "system_prompt",
+                "analysis_methods",
+                "reporting_format",
+            ],
             required_integrations=["database", "analytics_platform", "visualization"],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
-            created_by="system"
+            created_by="system",
         )
-    
+
     def _apply_customizations(
-        self, 
-        config: AgentConfig, 
-        template: AgentTemplate, 
-        customizations: Dict[str, Any]
+        self,
+        config: AgentConfig,
+        template: AgentTemplate,
+        customizations: Dict[str, Any],
     ) -> AgentConfig:
         """Apply customizations to agent config"""
         for field, value in customizations.items():
@@ -563,41 +579,39 @@ Analysis Approach:
                     setattr(config, field, value)
                 elif field in config.metadata:
                     config.metadata[field] = value
-        
+
         return config
-    
+
     def _apply_template_customizations(
-        self, 
-        template: AgentTemplate, 
-        customizations: Dict[str, Any]
+        self, template: AgentTemplate, customizations: Dict[str, Any]
     ) -> AgentTemplate:
         """Apply customizations to template"""
         for field, value in customizations.items():
             if hasattr(template, field) and field != "id":
                 setattr(template, field, value)
-        
+
         return template
-    
+
     def _load_template_from_file(self, template_file: Path) -> AgentTemplate:
         """Load template from JSON file"""
-        with open(template_file, 'r') as f:
+        with open(template_file, "r") as f:
             data = json.load(f)
-        
+
         # Convert string enums back to enum instances
-        data['industry'] = IndustryType(data['industry'])
-        data['category'] = TemplateCategory(data['category'])
-        
+        data["industry"] = IndustryType(data["industry"])
+        data["category"] = TemplateCategory(data["category"])
+
         # Convert ISO strings back to datetime
-        data['created_at'] = datetime.fromisoformat(data['created_at'])
-        data['updated_at'] = datetime.fromisoformat(data['updated_at'])
-        
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+
         # Reconstruct AgentConfig
-        config_data = data.pop('config')
+        config_data = data.pop("config")
         config = AgentConfig(**config_data)
-        data['config'] = config
-        
+        data["config"] = config
+
         return AgentTemplate(**data)
-    
+
     async def _load_all_templates(self):
         """Load all templates from files"""
         for template_file in self.templates_dir.glob("*.json"):
@@ -616,43 +630,50 @@ class TemplateManager:
     Enterprise template management with governance.
     Future: Approval workflows, version control, compliance checking
     """
-    
+
     def __init__(self, template_engine: AgentTemplateEngine):
         self.engine = template_engine
-    
-    async def get_templates_by_industry(self, industry: IndustryType) -> List[AgentTemplate]:
+
+    async def get_templates_by_industry(
+        self, industry: IndustryType
+    ) -> List[AgentTemplate]:
         """Get all templates for specific industry"""
         return await self.engine.list_templates(industry=industry)
-    
+
     async def get_production_ready_templates(self) -> List[AgentTemplate]:
         """Get templates approved for production use"""
         all_templates = await self.engine.list_templates()
         return [t for t in all_templates if t.approved_for_production]
-    
-    async def validate_template_compliance(self, template: AgentTemplate) -> Dict[str, Any]:
+
+    async def validate_template_compliance(
+        self, template: AgentTemplate
+    ) -> Dict[str, Any]:
         """
         Validate template compliance.
         Future: Industry-specific compliance rules
         """
         issues = []
-        
+
         # Basic validation
         if not template.name or len(template.name) < 3:
             issues.append("Template name too short")
-        
+
         if not template.description or len(template.description) < 10:
             issues.append("Template description too short")
-        
+
         if not template.config.system_prompt or len(template.config.system_prompt) < 50:
             issues.append("System prompt too short")
-        
+
         # Security validation
-        if template.security_classification == "confidential" and not template.required_integrations:
+        if (
+            template.security_classification == "confidential"
+            and not template.required_integrations
+        ):
             issues.append("Confidential templates should specify required integrations")
-        
+
         return {
             "valid": len(issues) == 0,
             "issues": issues,
             "compliance_level": template.compliance_level,
-            "security_classification": template.security_classification
+            "security_classification": template.security_classification,
         }

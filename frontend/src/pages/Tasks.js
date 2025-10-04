@@ -12,7 +12,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Chip,
   IconButton,
   LinearProgress,
 } from '@mui/material';
@@ -60,16 +59,6 @@ const Tasks = () => {
       ...data,
       input_data: inputData,
     });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'running': return 'info';
-      case 'failed': return 'error';
-      case 'pending': return 'warning';
-      default: return 'default';
-    }
   };
 
   const columns = [

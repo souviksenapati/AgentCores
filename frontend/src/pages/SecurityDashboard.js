@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -20,8 +20,6 @@ import {
   ListItemText,
   ListItemIcon,
   Button,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
   Security as SecurityIcon,
@@ -42,11 +40,7 @@ export default function SecurityDashboard() {
   const [securityData, setSecurityData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadSecurityData();
-  }, []);
-
-  const loadSecurityData = async () => {
+  const loadSecurityData = useCallback(async () => {
     setLoading(true);
     // Simulate API call to get security data
     setTimeout(() => {
@@ -78,7 +72,11 @@ export default function SecurityDashboard() {
       });
       setLoading(false);
     }, 1000);
-  };
+  }, [getSessionInfo]);
+
+  useEffect(() => {
+    loadSecurityData();
+  }, [loadSecurityData]);
 
   const getSecurityScoreColor = (score) => {
     if (score >= 90) return 'success';

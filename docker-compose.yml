@@ -345,6 +345,9 @@ networks:
 # Development:
 #   docker-compose up
 #
+# Testing (CI/CD):
+#   docker-compose --profile testing up -d
+#
 # Production:
 #   docker-compose --profile production up -d
 #

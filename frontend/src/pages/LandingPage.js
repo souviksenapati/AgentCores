@@ -12,21 +12,16 @@ import {
   Avatar,
   Paper,
   Stack,
-  Divider,
 } from '@mui/material';
 import {
   SmartToy,
   AutoFixHigh,
-  Speed,
   Security,
   Analytics,
   Group,
-  CheckCircle,
   Star,
-  TrendingUp,
   Shield,
   CloudQueue,
-  Integration,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 

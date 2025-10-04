@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, EmailStr, Field
+
 
 class AgentStatus(str, Enum):
     IDLE = "idle"
@@ -10,12 +12,14 @@ class AgentStatus(str, Enum):
     ERROR = "error"
     TERMINATED = "terminated"
 
+
 class TaskStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
 
 # Multi-tenant enums
 class TenantStatus(str, Enum):
@@ -25,16 +29,19 @@ class TenantStatus(str, Enum):
     EXPIRED = "expired"
     PENDING = "pending"
 
+
 class SubscriptionTier(str, Enum):
     FREE = "free"
     BASIC = "basic"
     PROFESSIONAL = "professional"
     ENTERPRISE = "enterprise"
 
+
 class UserRole(str, Enum):
     ADMIN = "admin"
     MEMBER = "member"
     VIEWER = "viewer"
+
 
 # Agent Schemas
 class AgentBase(BaseModel):
@@ -51,8 +58,10 @@ class AgentBase(BaseModel):
     resources: Optional[Dict[str, Any]] = Field(default_factory=dict)
     connected_agents: Optional[List[str]] = Field(default_factory=list)
 
+
 class AgentCreate(AgentBase):
     pass
+
 
 class AgentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -61,6 +70,12 @@ class AgentUpdate(BaseModel):
     configuration: Optional[Dict[str, Any]] = None
     capabilities: Optional[List[str]] = None
     resources: Optional[Dict[str, Any]] = None
+    model: Optional[str] = None
+    instructions: Optional[str] = None
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(None, ge=1, le=8000)
+    connected_agents: Optional[List[str]] = None
+
 
 class Agent(AgentBase):
     id: str
@@ -73,19 +88,24 @@ class Agent(AgentBase):
     class Config:
         from_attributes = True
 
+
 # Task Schemas
 class TaskBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    task_type: str = Field(..., description="Type of task (text_processing, api_call, workflow)")
+    task_type: str = Field(
+        ..., description="Type of task (text_processing, api_call, workflow)"
+    )
     input_data: Dict[str, Any] = Field(default_factory=dict)
     output_schema: Optional[Dict[str, Any]] = None
     priority: int = Field(default=1, ge=1, le=5)
     timeout_seconds: int = Field(default=300, ge=1, le=3600)
     retry_count: int = Field(default=3, ge=0, le=10)
 
+
 class TaskCreate(TaskBase):
     agent_id: str
+
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -93,6 +113,7 @@ class TaskUpdate(BaseModel):
     input_data: Optional[Dict[str, Any]] = None
     priority: Optional[int] = Field(None, ge=1, le=5)
     timeout_seconds: Optional[int] = Field(None, ge=1, le=3600)
+
 
 class Task(TaskBase):
     id: str
@@ -103,6 +124,7 @@ class Task(TaskBase):
     class Config:
         from_attributes = True
 
+
 # Task Execution Schemas
 class TaskExecutionBase(BaseModel):
     status: TaskStatus
@@ -110,9 +132,11 @@ class TaskExecutionBase(BaseModel):
     error_message: Optional[str] = None
     execution_time_ms: Optional[int] = None
 
+
 class TaskExecutionCreate(TaskExecutionBase):
     agent_id: str
     task_id: str
+
 
 class TaskExecution(TaskExecutionBase):
     id: str
@@ -125,6 +149,7 @@ class TaskExecution(TaskExecutionBase):
     class Config:
         from_attributes = True
 
+
 # Chat Schemas
 class ChatMessage(BaseModel):
     id: str
@@ -134,13 +159,16 @@ class ChatMessage(BaseModel):
     timestamp: datetime
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
     agent_id: str
 
+
 class ChatResponse(BaseModel):
     message: ChatMessage
     response: ChatMessage
+
 
 # Response Schemas
 class AgentListResponse(BaseModel):
@@ -149,16 +177,19 @@ class AgentListResponse(BaseModel):
     page: int
     size: int
 
+
 class TaskListResponse(BaseModel):
     tasks: List[Task]
     total: int
     page: int
     size: int
 
+
 class TaskExecutionResponse(BaseModel):
     execution: TaskExecution
     task: Task
     agent: Agent
+
 
 # Health Check
 class HealthCheck(BaseModel):
@@ -166,11 +197,13 @@ class HealthCheck(BaseModel):
     timestamp: datetime
     version: str = "1.0.0"
 
+
 # Authentication Schemas
 class UserLogin(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     tenant_name: str = Field(..., min_length=1, description="Organization name")
+
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -179,14 +212,17 @@ class UserRegister(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     tenant_name: str = Field(..., min_length=1, description="Organization name")
 
+
 class UserInviteAccept(BaseModel):
     token: str
     password: str = Field(..., min_length=8)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
 
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
 
 # User Schemas
 class UserBase(BaseModel):
@@ -194,6 +230,7 @@ class UserBase(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     role: UserRole
+
 
 class UserResponse(UserBase):
     id: str
@@ -206,15 +243,18 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
 
+
 class UserInvite(BaseModel):
     email: EmailStr
     role: UserRole = UserRole.MEMBER
+
 
 # Tenant Schemas
 class TenantCreate(BaseModel):
@@ -222,6 +262,7 @@ class TenantCreate(BaseModel):
     contact_email: EmailStr
     contact_name: str = Field(..., min_length=1, max_length=255)
     subscription_tier: SubscriptionTier = SubscriptionTier.FREE
+
 
 class TenantResponse(BaseModel):
     id: str
@@ -238,11 +279,13 @@ class TenantResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class TenantUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     contact_email: Optional[EmailStr] = None
     contact_name: Optional[str] = Field(None, min_length=1, max_length=255)
     settings: Optional[Dict[str, Any]] = None
+
 
 # Invitation Schemas
 class InvitationResponse(BaseModel):
@@ -256,6 +299,7 @@ class InvitationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 # Token Response - Defined after UserResponse and TenantResponse to avoid forward reference issues
 class TokenResponse(BaseModel):

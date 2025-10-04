@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { hasPermission, ROLE_PERMISSIONS } from '../utils/rolePermissions';
-import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -15,7 +14,6 @@ export const useAuth = () => {
 // Security constants
 const TOKEN_EXPIRY_BUFFER = 5 * 60 * 1000; // 5 minutes buffer before expiry
 const MAX_SESSION_TIME = 8 * 60 * 60 * 1000; // 8 hours max session
-const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check activity every minute
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -175,12 +173,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const loadAuthData = () => {
       try {
-        console.log('🔍 AuthContext: Loading auth data...');
         const validatedAuth = validateStoredAuth();
         
         if (validatedAuth) {
-          console.log('✅ AuthContext: Valid auth data found, setting user state');
-          console.log('🔑 Setting token:', validatedAuth.token.substring(0, 20) + '...');
           setToken(validatedAuth.token);
           setUser(validatedAuth.user);
           setTenant(validatedAuth.tenant);
@@ -194,11 +189,9 @@ export const AuthProvider = ({ children }) => {
           }
           
           // IMPORTANT: Set the token in the API service
-          console.log('🔧 Setting token in API service...');
           const { setAuthToken } = require('../services/api');
           setAuthToken(validatedAuth.token);
         } else {
-          console.log('❌ AuthContext: No valid auth data found, clearing storage');
           // Clear any corrupted/invalid data
           clearStoredAuth();
         }
@@ -206,7 +199,6 @@ export const AuthProvider = ({ children }) => {
         console.error('💥 AuthContext: Error loading auth data:', error);
         clearStoredAuth();
       } finally {
-        console.log('🏁 AuthContext: Loading complete, setting loading=false');
         setLoading(false);
       }
     };
@@ -331,7 +323,6 @@ export const AuthProvider = ({ children }) => {
 
   const isAuthenticated = () => {
     if (!token || !user || !tenant) {
-      console.log('🔍 isAuthenticated: Missing basic auth data', { token: !!token, user: !!user, tenant: !!tenant });
       return false;
     }
     
@@ -356,26 +347,7 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     
-    console.log('✅ isAuthenticated: All checks passed');
     return true;
-  };
-
-  const getCurrentUser = async () => {
-    if (!isAuthenticated()) {
-      throw new Error('Not authenticated');
-    }
-    
-    try {
-      // Validate current session with backend
-      const response = await authAPI.getCurrentUser();
-      return response.data;
-    } catch (error) {
-      console.error('Failed to get current user:', error);
-      if (error.response?.status === 401) {
-        logout();
-      }
-      throw error;
-    }
   };
 
   const hasRole = (role) => {

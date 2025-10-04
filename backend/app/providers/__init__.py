@@ -3,4 +3,4 @@
 
 from .openrouter_provider import OpenRouterProvider
 
-__all__ = ['OpenRouterProvider']
+__all__ = ["OpenRouterProvider"]

@@ -10,7 +10,7 @@ const ProtectedRoute = ({
   requirePermission = null,
   fallbackPath = '/login'
 }) => {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
   const [authCheck, setAuthCheck] = useState({
     checking: true,
