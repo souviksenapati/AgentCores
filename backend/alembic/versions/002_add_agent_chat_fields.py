@@ -1,7 +1,7 @@
 """Add agent chat fields
 
 Revision ID: 002
-Revises: 001
+Revises: 
 Create Date: 2024-01-01 12:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers
 revision = "002"
-down_revision = "001"
+down_revision = None  # This is the first migration
 branch_labels = None
 depends_on = None
 

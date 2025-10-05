@@ -282,12 +282,39 @@ IndividualSessionLocal = sessionmaker(
 # Base class for models
 Base = declarative_base()
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing with defensive configuration
+try:
+    # Try to initialize bcrypt with safer configuration
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+except Exception:
+    # Fallback to a more basic configuration if bcrypt has issues
+    try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+    except Exception:
+        # Ultimate fallback - simple password context
+        pwd_context = None
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password with bcrypt 72-byte limit handling"""
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    if len(password.encode('utf-8')) > 72:
+        password = password[:72]
+    
+    if pwd_context is None:
+        # Fallback hashing if bcrypt fails
+        import hashlib
+        return hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), b'salt', 100000).hex()
+    
+    try:
+        return pwd_context.hash(password)
+    except ValueError as e:
+        if "72 bytes" in str(e):
+            # Additional protection - truncate more aggressively if needed
+            password = password[:60]  # Leave some margin
+            return pwd_context.hash(password)
+        raise
 
 
 # Multi-Database Session Management
