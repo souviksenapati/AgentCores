@@ -131,7 +131,6 @@ redis_data/
 htmlcov/
 test-results/
 coverage/
-test_*.py
 
 # Generated documentation files
 PROJECT_STRUCTURE.md
