@@ -61,11 +61,11 @@ class TaskDefinition:
     max_retries: int = 3
 
     # Dependencies and workflow
-    depends_on: List[str] = None  # Task IDs this task depends on
+    depends_on: Optional[List[str]] = None  # Task IDs this task depends on
     callback_url: Optional[str] = None
 
     # Metadata
-    created_at: datetime = None
+    created_at: Optional[datetime] = None
     scheduled_for: Optional[datetime] = None
 
     def __post_init__(self):
@@ -92,18 +92,18 @@ class TaskExecution:
     current_attempt: int = 0
 
     # Timing
-    created_at: datetime = None
+    created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
     # Results and errors
     result: Optional[TaskResult] = None
-    error_history: List[str] = None
+    error_history: Optional[List[str]] = None
 
     # Enterprise metrics
     execution_node: Optional[str] = None  # Which worker executed
     cost_estimate: float = 0.0
-    token_usage: Dict[str, int] = None
+    token_usage: Optional[Dict[str, int]] = None
 
     def __post_init__(self):
         if self.created_at is None:
@@ -159,7 +159,7 @@ class TaskQueue:
         ]:
             queue = self._queues[priority]
             if not queue.empty():
-                task_execution = await queue.get()
+                task_execution: TaskExecution = await queue.get()
 
                 # Move from pending to running
                 if task_execution.task_id in self._pending_tasks:
@@ -427,13 +427,14 @@ class TaskExecutionEngine:
 
         logger.info(f"Executing task: {task_id} on {worker_id}")
 
-        try:
-            # Check timeout
-            if task_definition.timeout_seconds > 0:
-                timeout = task_definition.timeout_seconds
-            else:
-                timeout = 300  # Default 5 minutes
+        # Check timeout
+        timeout = (
+            task_definition.timeout_seconds
+            if task_definition.timeout_seconds > 0
+            else 300
+        )  # Default 5 minutes
 
+        try:
             # Set execution node for tracking
             task_execution.execution_node = worker_id
 
@@ -484,6 +485,8 @@ class TaskExecutionEngine:
         task_definition = task_execution.definition
 
         task_execution.current_attempt += 1
+        if task_execution.error_history is None:
+            task_execution.error_history = []
         task_execution.error_history.append(error_msg)
 
         logger.error(

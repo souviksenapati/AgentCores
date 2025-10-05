@@ -302,7 +302,7 @@ class OpenRouterProvider(AIProviderInterface):
 
                 if response.status_code == 200:
                     models_data = response.json()
-                    return models_data.get("data", [])
+                    return list(models_data.get("data", []))
 
         except Exception as e:
             logger.error(f"Failed to fetch models: {str(e)}")
@@ -347,7 +347,7 @@ class OpenRouterProvider(AIProviderInterface):
                 )
 
                 if response.status_code == 200:
-                    return response.json()
+                    return dict(response.json())
                 elif response.status_code == 429:
                     # Rate limit - exponential backoff
                     wait_time = (2**attempt) + (time.time() % 1)  # Add jitter
@@ -396,7 +396,7 @@ class OpenRouterProvider(AIProviderInterface):
         total_cost = (input_tokens * input_cost / 1000) + (
             output_tokens * output_cost / 1000
         )
-        return round(total_cost, 6)
+        return float(round(total_cost, 6))
 
     async def __aenter__(self):
         """Async context manager entry"""

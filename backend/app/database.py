@@ -180,7 +180,7 @@ class EnterpriseConfig:
     @classmethod
     def get_database_config(cls) -> Dict[str, Any]:
         """Get database configuration for SQLAlchemy (multi-tenant setup)"""
-        config = {
+        config: Dict[str, Any] = {
             "pool_size": cls.DB_POOL_SIZE,
             "max_overflow": cls.DB_MAX_OVERFLOW,
             "pool_timeout": cls.DB_POOL_TIMEOUT,
@@ -191,7 +191,10 @@ class EnterpriseConfig:
 
         # Enterprise: Add SSL configuration for production
         if cls.is_production():
-            config["connect_args"] = {"sslmode": "require"}
+            if "connect_args" not in config:
+                config["connect_args"] = {"sslmode": "require"}
+            else:
+                config["connect_args"]["sslmode"] = "require"
 
         return config
 
@@ -288,7 +291,7 @@ def get_password_hash(password: str) -> str:
 
 
 # Multi-Database Session Management
-def get_db_session(account_type: str):
+def get_db_session(account_type: str) -> Any:
     """
     Get database session based on account type
 
@@ -308,7 +311,7 @@ def get_db_session(account_type: str):
         )
 
 
-def get_db():
+def get_db() -> Any:
     """
     FastAPI dependency for database session.
     Defaults to organization database for backwards compatibility.
@@ -321,7 +324,7 @@ def get_db():
 
 
 # Dependency to get Organization DB session
-def get_org_db():
+def get_org_db() -> Any:
     db = OrgSessionLocal()
     try:
         yield db
@@ -330,7 +333,7 @@ def get_org_db():
 
 
 # Dependency to get Individual DB session
-def get_individual_db():
+def get_individual_db() -> Any:
     db = IndividualSessionLocal()
     try:
         yield db
@@ -338,7 +341,7 @@ def get_individual_db():
         db.close()
 
 
-def init_database():
+def init_database() -> None:
     """Initialize multi-database setup with tables and default data"""
     print("🔧 Initializing enterprise multi-database system...")
     print("   📊 Organization Database: For multi-tenant organizations")
@@ -470,7 +473,7 @@ def init_database():
 config = EnterpriseConfig()
 
 
-def validate_startup_configuration():
+def validate_startup_configuration() -> bool:
     """Validate startup configuration for Docker deployment"""
     try:
         config = EnterpriseConfig()

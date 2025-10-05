@@ -34,7 +34,9 @@ async def create_agent(
 ):
     """Create a new agent"""
     service = AgentService(db)
-    return await service.create_agent(agent_data, tenant_id)
+    return await service.create_agent_from_schema(
+        agent_data, tenant_id, str(current_user.user_id)
+    )
 
 
 @router.get("/agents", response_model=AgentListResponse)
@@ -144,7 +146,9 @@ async def create_task(
     """Create a new task"""
     service = TaskService(db)
     try:
-        return await service.create_task(task_data, tenant_id)
+        return await service.create_task(
+            task_data, tenant_id, str(current_user.user_id)
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

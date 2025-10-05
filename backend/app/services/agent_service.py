@@ -147,7 +147,7 @@ class AgentService(AgentServiceInterface):
                 )
 
             # Determine provider type
-            config_data = db_agent.config or {}
+            config_data: dict = db_agent.config or {}  # type: ignore
             provider_type_str = config_data.get("provider", "openrouter")
             try:
                 provider_type = ProviderType(provider_type_str)
@@ -556,7 +556,7 @@ class AgentService(AgentServiceInterface):
         if isinstance(input_data, str):
             return input_data
         elif isinstance(input_data, dict):
-            return input_data.get("prompt", str(input_data))
+            return str(input_data.get("prompt", str(input_data)))
         else:
             return str(input_data)
 
@@ -727,7 +727,7 @@ class TaskService:
 
         try:
             # Create task request
-            input_data = db_task.input_data or {}
+            input_data: dict = db_task.input_data or {}  # type: ignore
             task_request = TaskRequest(
                 agent_id=str(db_task.agent_id),
                 input_data=input_data.get("data", {}),

@@ -137,7 +137,7 @@ async def get_users(
             first_name=str(user.first_name),
             last_name=str(user.last_name),
             role=user.role.value,
-            tenant_id=user.tenant_id,
+            tenant_id=str(user.tenant_id),
             is_active=bool(user.is_active),
             last_login=(
                 user.last_login.isoformat()

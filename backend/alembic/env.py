@@ -74,7 +74,7 @@ def run_migrations_online() -> None:
     """
 
     # Override the sqlalchemy.url in the alembic.ini with our environment variable
-    configuration = config.get_section(config.config_ini_section)
+    configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = get_database_url()
 
     connectable = engine_from_config(
@@ -129,8 +129,8 @@ def render_item_with_enterprise_naming(type_, obj, autogen_context):
             column_name = "_".join(obj.columns.keys())
             obj.name = f"uq_{table_name}_{column_name}"
 
-    # Return None to use default rendering
-    return None
+    # Return False to use default rendering
+    return False
 
 
 # Determine which mode to run migrations in

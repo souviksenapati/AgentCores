@@ -6,6 +6,7 @@ Built for MVP simplicity, designed for billion-dollar platform scale.
 import enum
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -24,7 +25,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+Base: Any = declarative_base()
 
 
 # Enterprise Enums
@@ -139,11 +140,11 @@ class Tenant(Base, TimestampMixin):
     domain = Column(String(100), nullable=True)  # Optional domain for tenant
 
     # Status and settings
-    status = Column(Enum(TenantStatus), default=TenantStatus.ACTIVE)
-    tier = Column(Enum(TenantTier), default=TenantTier.BASIC)
+    status: Column[TenantStatus] = Column(Enum(TenantStatus), default=TenantStatus.ACTIVE)  # type: ignore[assignment]
+    tier: Column[TenantTier] = Column(Enum(TenantTier), default=TenantTier.BASIC)  # type: ignore[assignment]
 
     # Enterprise features
-    compliance_level = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)
+    compliance_level: Column[ComplianceLevel] = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)  # type: ignore[assignment]
     data_residency = Column(
         String(50), default="us-east-1"
     )  # Data residency requirement
@@ -233,7 +234,7 @@ class User(Base, TenantMixin, TimestampMixin):
     # User status and role
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
-    role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
+    role: Column[UserRole] = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)  # type: ignore[assignment]
 
     # User metadata
     department = Column(String(100), nullable=True)
@@ -289,9 +290,13 @@ class User(Base, TenantMixin, TimestampMixin):
             "phone": self.phone,
             "is_active": self.is_active,
             "is_verified": self.is_verified,
-            "last_login": self.last_login.isoformat() if self.last_login else None,
+            "last_login": (
+                self.last_login.isoformat() if self.last_login is not None else None
+            ),
             "last_activity": (
-                self.last_activity.isoformat() if self.last_activity else None
+                self.last_activity.isoformat()
+                if self.last_activity is not None
+                else None
             ),
             "mfa_enabled": self.mfa_enabled,
             "timezone": self.timezone,
@@ -318,7 +323,7 @@ class Agent(Base, TenantMixin, TimestampMixin):
     # Agent metadata
     name = Column(String(100), nullable=False)
     description = Column(Text)
-    status = Column(Enum(AgentStatus), default=AgentStatus.ACTIVE, nullable=False)
+    status: Column[AgentStatus] = Column(Enum(AgentStatus), default=AgentStatus.ACTIVE, nullable=False)  # type: ignore[assignment]
 
     # Agent configuration (stored as JSON for flexibility)
     config = Column(JSON, nullable=False)
@@ -339,9 +344,9 @@ class Agent(Base, TenantMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     approved_for_production = Column(Boolean, default=False)
-    compliance_level = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)
-    security_classification = Column(
-        Enum(SecurityClassification), default=SecurityClassification.INTERNAL
+    compliance_level: Column[ComplianceLevel] = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)  # type: ignore[assignment]
+    security_classification: Column[SecurityClassification] = Column(
+        Enum(SecurityClassification), default=SecurityClassification.INTERNAL  # type: ignore[assignment]
     )
 
     # Performance tracking
@@ -402,11 +407,11 @@ class Task(Base, TenantMixin, TimestampMixin):
     task_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Task definition
-    task_type = Column(Enum(TaskType), nullable=False)
-    priority = Column(Enum(TaskPriority), default=TaskPriority.NORMAL)
+    task_type: Column[TaskType] = Column(Enum(TaskType), nullable=False)  # type: ignore[assignment]
+    priority: Column[TaskPriority] = Column(Enum(TaskPriority), default=TaskPriority.NORMAL)  # type: ignore[assignment]
 
     # Task execution
-    status = Column(Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False)
+    status: Column[TaskStatus] = Column(Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False)  # type: ignore[assignment]
     input_data = Column(JSON, nullable=False)
     result = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
@@ -476,9 +481,11 @@ class Task(Base, TenantMixin, TimestampMixin):
             "user_id": str(self.user_id),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
-            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "started_at": (
+                self.started_at.isoformat() if self.started_at is not None else None
+            ),
             "completed_at": (
-                self.completed_at.isoformat() if self.completed_at else None
+                self.completed_at.isoformat() if self.completed_at is not None else None
             ),
             "execution_time_ms": self.execution_time_ms,
             "current_attempt": self.current_attempt,
@@ -487,8 +494,10 @@ class Task(Base, TenantMixin, TimestampMixin):
             "cost_estimate": self.cost_estimate,
             "provider": self.provider,
             "model": self.model,
-            "correlation_id": str(self.correlation_id) if self.correlation_id else None,
-            "trace_id": str(self.trace_id) if self.trace_id else None,
+            "correlation_id": (
+                str(self.correlation_id) if self.correlation_id is not None else None
+            ),
+            "trace_id": str(self.trace_id) if self.trace_id is not None else None,
         }
 
 
@@ -504,12 +513,12 @@ class TenantInvitation(Base, TenantMixin, TimestampMixin):
 
     # Invitation details
     email = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
+    role: Column[UserRole] = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)  # type: ignore[assignment]
     token = Column(String(255), nullable=False, unique=True)
 
     # Status and expiry
-    status = Column(
-        Enum(InvitationStatus), default=InvitationStatus.PENDING, nullable=False
+    status: Column[InvitationStatus] = Column(
+        Enum(InvitationStatus), default=InvitationStatus.PENDING, nullable=False  # type: ignore[assignment]
     )
     expires_at = Column(DateTime, nullable=False)
 
@@ -543,7 +552,9 @@ class TenantInvitation(Base, TenantMixin, TimestampMixin):
             "tenant_id": self.tenant_id,
             "invited_by_user_id": str(self.invited_by_user_id),
             "expires_at": self.expires_at.isoformat(),
-            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
+            "accepted_at": (
+                self.accepted_at.isoformat() if self.accepted_at is not None else None
+            ),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -604,13 +615,15 @@ class SecurityEvent(Base, TenantMixin, TimestampMixin):
             "id": str(self.id),
             "event_type": self.event_type,
             "severity": self.severity,
-            "user_id": str(self.user_id) if self.user_id else None,
+            "user_id": str(self.user_id) if self.user_id is not None else None,
             "ip_address": self.ip_address,
             "user_agent": self.user_agent,
             "event_data": self.event_data,
             "result": self.result,
             "session_id": self.session_id,
-            "correlation_id": str(self.correlation_id) if self.correlation_id else None,
+            "correlation_id": (
+                str(self.correlation_id) if self.correlation_id is not None else None
+            ),
             "risk_score": self.risk_score,
             "threat_indicators": self.threat_indicators,
             "tenant_id": self.tenant_id,
@@ -694,14 +707,16 @@ class Event(Base, TenantMixin, TimestampMixin):
             "source": self.source,
             "data": self.data,
             "tenant_id": self.tenant_id,
-            "user_id": str(self.user_id) if self.user_id else None,
-            "agent_id": str(self.agent_id) if self.agent_id else None,
-            "task_id": str(self.task_id) if self.task_id else None,
-            "correlation_id": str(self.correlation_id) if self.correlation_id else None,
-            "parent_event_id": (
-                str(self.parent_event_id) if self.parent_event_id else None
+            "user_id": str(self.user_id) if self.user_id is not None else None,
+            "agent_id": str(self.agent_id) if self.agent_id is not None else None,
+            "task_id": str(self.task_id) if self.task_id is not None else None,
+            "correlation_id": (
+                str(self.correlation_id) if self.correlation_id is not None else None
             ),
-            "trace_id": str(self.trace_id) if self.trace_id else None,
+            "parent_event_id": (
+                str(self.parent_event_id) if self.parent_event_id is not None else None
+            ),
+            "trace_id": str(self.trace_id) if self.trace_id is not None else None,
             "priority": self.priority,
             "severity": self.severity,
             "created_at": self.created_at.isoformat(),
@@ -709,13 +724,15 @@ class Event(Base, TenantMixin, TimestampMixin):
             "delivery_attempts": self.delivery_attempts,
             "last_delivery_attempt": (
                 self.last_delivery_attempt.isoformat()
-                if self.last_delivery_attempt
+                if self.last_delivery_attempt is not None
                 else None
             ),
             "delivered": self.delivered,
             "retention_policy": self.retention_policy,
             "archived": self.archived,
-            "archived_at": self.archived_at.isoformat() if self.archived_at else None,
+            "archived_at": (
+                self.archived_at.isoformat() if self.archived_at is not None else None
+            ),
         }
 
 
@@ -750,9 +767,9 @@ class Template(Base, TimestampMixin):
     requirements = Column(JSON, default=list)  # List of requirements
 
     # Enterprise governance
-    compliance_level = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)
-    security_classification = Column(
-        Enum(SecurityClassification), default=SecurityClassification.PUBLIC
+    compliance_level: Column[ComplianceLevel] = Column(Enum(ComplianceLevel), default=ComplianceLevel.BASIC)  # type: ignore[assignment]
+    security_classification: Column[SecurityClassification] = Column(
+        Enum(SecurityClassification), default=SecurityClassification.PUBLIC  # type: ignore[assignment]
     )
     approved_for_production = Column(Boolean, default=False)
 
@@ -797,7 +814,9 @@ class Template(Base, TimestampMixin):
             "created_by": self.created_by,
             "approved_by": self.approved_by,
             "approval_date": (
-                self.approval_date.isoformat() if self.approval_date else None
+                self.approval_date.isoformat()
+                if self.approval_date is not None
+                else None
             ),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),

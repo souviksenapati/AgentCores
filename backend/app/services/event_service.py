@@ -187,7 +187,7 @@ class EventStore:
         # Start cleanup task
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
-    async def store_event(self, event: Event):
+    async def store_event(self, event: Event) -> None:
         """Store event with automatic cleanup"""
         self._events[event.event_id] = event
 
@@ -258,7 +258,7 @@ class EventStore:
 
         return stats
 
-    async def _cleanup_loop(self):
+    async def _cleanup_loop(self) -> None:
         """Background cleanup of old events"""
         while True:
             try:
@@ -312,7 +312,7 @@ class EventService:
 
         # Event processing
         self._event_queue: asyncio.Queue = asyncio.Queue()
-        self._processor_task = None
+        self._processor_task: Optional[asyncio.Task[Any]] = None
         self._running = False
 
         # Enterprise features
@@ -327,7 +327,7 @@ class EventService:
             "handlers_registered": 0,
         }
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the event service"""
         if self._running:
             return
@@ -345,7 +345,7 @@ class EventService:
             }
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the event service"""
         self._running = False
 
@@ -535,7 +535,7 @@ class EventService:
 
         logger.info("Event processor stopped")
 
-    async def _process_event_with_handlers(self, event: Event):
+    async def _process_event_with_handlers(self, event: Event) -> None:
         """Process event with all matching handlers"""
         matching_handlers = []
 
@@ -562,7 +562,9 @@ class EventService:
                 handler = matching_handlers[i]
                 logger.error(f"Handler {handler.handler_id} failed: {str(result)}")
 
-    async def _execute_handler_with_retry(self, handler: EventHandler, event: Event):
+    async def _execute_handler_with_retry(
+        self, handler: EventHandler, event: Event
+    ) -> None:
         """Execute handler with retry logic"""
         max_retries = handler.retry_config.get("max_retries", 3)
         backoff_multiplier = handler.retry_config.get("backoff_multiplier", 2)

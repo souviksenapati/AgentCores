@@ -126,7 +126,7 @@ async def get_current_user(
 
 
 def get_tenant_id(current_user: User = Depends(get_current_user)) -> str:
-    return current_user.tenant_id
+    return str(current_user.tenant_id)
 
 
 def require_admin_or_member_role(

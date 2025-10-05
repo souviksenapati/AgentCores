@@ -64,8 +64,8 @@ class AgentConfig(BaseModel):
 
     name: str
     description: str
-    agent_type: AgentType
-    provider: ProviderType
+    agent_type: AgentType = AgentType.CHATBOT
+    provider: ProviderType = ProviderType.OPENROUTER
     model: str
     system_prompt: str
     temperature: float = 0.7
@@ -76,6 +76,10 @@ class AgentConfig(BaseModel):
     compliance_tags: List[str] = []  # Future: GDPR, HIPAA, SOX
     resource_limits: Dict[str, Any] = {}  # Future: CPU, Memory, GPU
     sla_requirements: Dict[str, Any] = {}  # Future: Latency, Availability
+
+    # Template engine compatibility
+    tools: List[Dict[str, Any]] = []  # Available tools/functions
+    metadata: Dict[str, Any] = {}  # Additional configuration metadata
 
 
 class TaskRequest(BaseModel):

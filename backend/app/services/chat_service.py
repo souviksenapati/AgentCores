@@ -68,14 +68,14 @@ class ChatService:
                     agent_id=agent_id,
                     message=message,
                     sender="user",
-                    timestamp=user_message.created_at,
+                    timestamp=user_message.created_at,  # type: ignore[arg-type]
                 ),
                 response=ChatMessage(
                     id=str(agent_message.id),
                     agent_id=agent_id,
                     message=agent_response,
                     sender="agent",
-                    timestamp=agent_message.created_at,
+                    timestamp=agent_message.created_at,  # type: ignore[arg-type]
                 ),
             )
         except Exception as e:
@@ -98,14 +98,14 @@ class ChatService:
                     agent_id=agent_id,
                     message=message,
                     sender="user",
-                    timestamp=user_message.created_at,
+                    timestamp=user_message.created_at,  # type: ignore[arg-type]
                 ),
                 response=ChatMessage(
                     id=str(agent_message.id),
                     agent_id=agent_id,
                     message=error_message,
                     sender="agent",
-                    timestamp=agent_message.created_at,
+                    timestamp=agent_message.created_at,  # type: ignore[arg-type]
                 ),
             )
 
@@ -144,8 +144,8 @@ class ChatService:
 
         # Add recent messages in chronological order
         for msg in reversed(recent_messages):
-            role = "user" if msg.sender == "user" else "assistant"
-            messages.append({"role": role, "content": msg.message})
+            role = "user" if str(msg.sender) == "user" else "assistant"
+            messages.append({"role": role, "content": str(msg.message)})
 
         # Add current message
         messages.append({"role": "user", "content": message})
@@ -170,7 +170,7 @@ class ChatService:
                 )
 
             result = response.json()
-            return result["choices"][0]["message"]["content"]
+            return str(result["choices"][0]["message"]["content"])
 
     async def get_chat_history(
         self, agent_id: str, user_id: str, tenant_id: str, limit: int = 50
