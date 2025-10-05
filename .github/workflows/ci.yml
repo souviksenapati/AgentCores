@@ -163,6 +163,25 @@ jobs:
         echo "Running mypy type checker..."
         mypy app/ --ignore-missing-imports --no-strict-optional --allow-any-generics --disable-error-code=no-untyped-def
 
+    - name: Setup test database
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      run: |
+        echo "Setting up test database..."
+        # Wait for database to be ready
+        timeout 60 bash -c 'until nc -z localhost 5432; do sleep 1; done' || echo "Database connection timeout"
+        echo "Database should be ready"
+        
+        # Test database connection
+        python -c "import psycopg2; conn=psycopg2.connect('postgresql://test_user:test_password@localhost:5432/test_db'); conn.close(); print('Database connection successful')" || echo "Database connection failed"
+        
+        # Run Alembic migrations if available
+        if [ -f "alembic.ini" ]; then
+          echo "Running database migrations..."
+          alembic upgrade head || echo "Migration failed or not needed"
+        fi
+
     - name: Security - Bandit vulnerability scan
       working-directory: ./backend
       run: |
@@ -201,7 +220,19 @@ jobs:
         OPENROUTER_API_KEY: test_api_key_placeholder
       run: |
         echo "Running backend unit tests..."
-        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=46
+        echo "Current working directory: $(pwd)"
+        echo "Python version: $(python --version)"
+        echo "Environment variables:"
+        echo "DATABASE_URL: $DATABASE_URL"
+        echo "REDIS_URL: $REDIS_URL"
+        echo "Available test files:"
+        find tests/ -name "*.py" -type f | head -10
+        echo "Test directory contents:"
+        ls -la tests/ || echo "Tests directory not found"
+        echo "App directory contents:"
+        ls -la app/ || echo "App directory not found"
+        echo "Starting pytest with coverage..."
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=46 --cov-report=term-missing
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
