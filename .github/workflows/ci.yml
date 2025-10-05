@@ -142,31 +142,31 @@ jobs:
     - name: Code Quality - Black formatter check
       working-directory: ./backend
       run: |
-        echo "🎨 Checking code formatting with Black..."
+        echo "Checking code formatting with Black..."
         black --check --diff app/ tests/
         
     - name: Code Quality - Import sorting check
       working-directory: ./backend
       run: |
-        echo "📦 Checking import sorting with isort..."
+        echo "Checking import sorting with isort..."
         isort --check-only --diff app/ tests/
 
     - name: Code Quality - Flake8 linting
       working-directory: ./backend
       run: |
-        echo "🔍 Running flake8 linter..."
+        echo "Running flake8 linter..."
         flake8 app/ --count --statistics
 
     - name: Code Quality - Type checking
       working-directory: ./backend
       run: |
-        echo "🔬 Running mypy type checker..."
+        echo "Running mypy type checker..."
         mypy app/ --ignore-missing-imports --no-strict-optional --allow-any-generics --disable-error-code=no-untyped-def
 
     - name: Security - Bandit vulnerability scan
       working-directory: ./backend
       run: |
-        echo "🔒 Running security scan with Bandit..."
+        echo "Running security scan with Bandit..."
         
         # Verify Bandit installation
         bandit --version
@@ -178,40 +178,18 @@ jobs:
           exit_code=$?
           echo "Bandit scan completed with exit code: $exit_code"
           if [ $exit_code -eq 1 ]; then
-            echo "⚠️  Security issues found but continuing CI (non-critical)"
+            echo "WARNING: Security issues found but continuing CI (non-critical)"
           else
-            echo "❌ Bandit scan failed with critical error"
+            echo "ERROR: Bandit scan failed with critical error"
             exit $exit_code
           fi
         }
         
         # Always show the report summary
         if [ -f bandit-report.json ]; then
-          echo "📋 Bandit security scan report:"
-          python -c "
-import json
-try:
-    with open('bandit-report.json', 'r') as f:
-        report = json.load(f)
-    
-    metrics = report.get('metrics', {}).get('_totals', {})
-    issues = len(report.get('results', []))
-    
-    print(f'📊 Scan Summary:')
-    print(f'   - Files scanned: {len([k for k in report.get(\"metrics\", {}).keys() if k != \"_totals\"])}')
-    print(f'   - Security issues found: {issues}')
-    print(f'   - High severity: {metrics.get(\"SEVERITY.HIGH\", 0)}')
-    print(f'   - Medium severity: {metrics.get(\"SEVERITY.MEDIUM\", 0)}')
-    print(f'   - Low severity: {metrics.get(\"SEVERITY.LOW\", 0)}')
-    
-    if issues == 0:
-        print('✅ No security vulnerabilities detected!')
-    else:
-        print('⚠️  Security scan completed with findings (review bandit-report.json)')
-        
-except Exception as e:
-    print(f'Error reading report: {e}')
-"
+          echo "Bandit security scan report:"
+          echo "Parsing results..."
+          python -c "import json; f=open('bandit-report.json'); r=json.load(f); m=r.get('metrics',{}).get('_totals',{}); i=len(r.get('results',[])); print(f'Files scanned: {len([k for k in r.get(\"metrics\",{}).keys() if k != \"_totals\"])}'); print(f'Security issues: {i}'); print(f'High: {m.get(\"SEVERITY.HIGH\",0)}, Medium: {m.get(\"SEVERITY.MEDIUM\",0)}, Low: {m.get(\"SEVERITY.LOW\",0)}'); print('SUCCESS: No vulnerabilities!' if i==0 else 'WARNING: Issues found - review report'); f.close()"
         fi
         
     - name: Unit Tests
@@ -222,7 +200,7 @@ except Exception as e:
         SECRET_KEY: test_secret_key_for_ci_pipeline
         OPENROUTER_API_KEY: test_api_key_placeholder
       run: |
-        echo "🧪 Running backend unit tests..."
+        echo "Running backend unit tests..."
         pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=46
 
     - name: Upload coverage reports
@@ -286,7 +264,7 @@ except Exception as e:
     - name: Install frontend dependencies
       working-directory: ./frontend
       run: |
-        echo "📦 Installing frontend dependencies..."
+        echo "Installing frontend dependencies..."
         
         if [[ "${{ steps.npm-cache.outputs.cache-hit }}" != 'true' ]]; then
           echo "Cache miss - cleaning npm cache"
@@ -307,30 +285,30 @@ except Exception as e:
           npm install --no-audit --no-optional
         fi
         
-        echo "✅ Dependencies installed successfully"
+        echo "Dependencies installed successfully"
 
     - name: Code Quality - ESLint
       working-directory: ./frontend
       run: |
-        echo "🔍 Running ESLint..."
+        echo "Running ESLint..."
         npm run lint
 
     - name: Code Quality - Prettier format check
       working-directory: ./frontend
       run: |
-        echo "🎨 Checking code formatting with Prettier..."
+        echo "Checking code formatting with Prettier..."
         npm run format:check
 
     - name: Unit Tests
       working-directory: ./frontend
       run: |
-        echo "🧪 Running frontend unit tests..."
+        echo "Running frontend unit tests..."
         npm run test:ci
 
     - name: Build Test
       working-directory: ./frontend
       run: |
-        echo "🏗️ Testing frontend build..."
+        echo "Testing frontend build..."
         npm run build
 
     - name: Upload coverage reports
@@ -392,24 +370,24 @@ except Exception as e:
 
     - name: Build and test Docker containers
       run: |
-        echo "🐳 Building Docker containers..."
+        echo "Building Docker containers..."
         docker-compose -f docker-compose.yml build
         
-        echo "🚀 Starting containers for testing..."
+        echo "Starting containers for testing..."
         docker-compose -f docker-compose.yml up -d
         
-        echo "⏳ Waiting for services to be ready..."
+        echo "Waiting for services to be ready..."
         sleep 45
         
-        echo "🏥 Testing backend health endpoint..."
+        echo "Testing backend health endpoint..."
         timeout 30 bash -c 'until curl --fail --silent http://localhost:8000/health; do sleep 2; done'
         
-        echo "🌐 Testing frontend accessibility..."
+        echo "Testing frontend accessibility..."
         timeout 30 bash -c 'until curl --fail --silent http://localhost:3000; do sleep 2; done'
         
-        echo "✅ All services are healthy!"
+        echo "All services are healthy!"
         
-        echo "🧹 Cleaning up test containers..."
+        echo "Cleaning up test containers..."
         docker-compose -f docker-compose.yml down
 
   # Integration Tests
@@ -424,18 +402,18 @@ except Exception as e:
 
     - name: Run integration tests
       run: |
-        echo "🔗 Starting full integration test suite..."
+        echo "Starting full integration test suite..."
         docker-compose up -d
         
-        echo "⏳ Waiting for all services to be fully ready..."
+        echo "Waiting for all services to be fully ready..."
         sleep 60
         
-        echo "🧪 Running API integration tests..."
+        echo "Running API integration tests..."
         # Add integration test commands here
         curl --fail http://localhost:8000/api/v1/health || exit 1
         curl --fail http://localhost:3000 || exit 1
         
-        echo "✅ Integration tests completed!"
+        echo "Integration tests completed!"
         docker-compose down
 
   # Deploy to Staging (dev branch only)
@@ -448,7 +426,7 @@ except Exception as e:
     steps:
     - name: Deploy to staging
       run: |
-        echo "🚀 Deploying to staging environment..."
+        echo "Deploying to staging environment..."
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${{ github.sha }}"
         # Add your staging deployment commands here
@@ -463,7 +441,7 @@ except Exception as e:
     steps:
     - name: Deploy to production
       run: |
-        echo "🌟 Deploying to production environment..."
+        echo "Deploying to production environment..."
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${{ github.sha }}"
         # Add your production deployment commands here
@@ -484,31 +462,31 @@ except Exception as e:
           const prNumber = context.payload.pull_request.number;
           
           const comment = `
-          ## 🎉 CI/CD Pipeline: SUCCESS ✅
+          ## CI/CD Pipeline: SUCCESS ✅
           
           **All quality gates passed!** This PR is ready for code review.
           
-          ### 📊 Test Results Summary:
-          - ✅ **Backend Tests**: All unit tests passed with coverage
-          - ✅ **Frontend Tests**: All UI tests passed  
-          - ✅ **Code Quality**: Formatting, linting, and type checking clean
-          - ✅ **Security Scan**: No vulnerabilities detected
-          - ✅ **Docker Build**: Containers build and start successfully
+          ### Test Results Summary:
+          - **Backend Tests**: All unit tests passed with coverage
+          - **Frontend Tests**: All UI tests passed  
+          - **Code Quality**: Formatting, linting, and type checking clean
+          - **Security Scan**: No vulnerabilities detected
+          - **Docker Build**: Containers build and start successfully
           
-          ### 🔄 **Merge Process:**
+          ###  **Merge Process:**
           1. **Code Review**: Request review from team members
           2. **Approval**: Get at least 1 approval
           3. **Merge**: Use "Squash and Merge" to keep history clean
           
-          ### 🔗 **Pipeline Details:**
+          ###  **Pipeline Details:**
           - **Workflow**: [View Full Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           - **Commit**: \`${{ github.event.pull_request.head.sha }}\`
           - **Feature Branch**: \`${{ github.head_ref }}\`
           - **Target Branch**: \`${{ github.base_ref }}\`
           
-          ### ✨ Ready for Review!
+          ###  Ready for Review!
           `;
-          
+        
           await github.rest.issues.createComment({
             issue_number: prNumber,
             owner: context.repo.owner,
@@ -531,27 +509,27 @@ except Exception as e:
           const dockerStatus = '${{ needs.docker-build.result }}' === 'failure' ? '❌ **Docker Build**: Failed' : '✅ **Docker Build**: Success';
           
           const comment = \`
-          ## ⚠️ CI/CD Pipeline: FAILURE ❌
+          ##  CI/CD Pipeline: FAILURE ❌
           
           **This PR has issues that must be fixed before merging.**
           
-          ### 📊 Check Results:
+          ### Check Results:
           \${backendStatus}
           \${frontendStatus}
           \${securityStatus}
           \${dockerStatus}
           
-          ### 🔧 **How to Fix:**
+          ###  **How to Fix:**
           1. **Review the logs**: Click the failed check links below
           2. **Fix the issues**: Make necessary code changes
           3. **Push updates**: New commits will trigger re-validation
           4. **Wait for green**: All checks must pass before merge
           
-          ### 🔗 **Debug Resources:**
+          ### **Debug Resources:**
           - **Full Logs**: [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           - **Commit**: \`${{ github.event.pull_request.head.sha }}\`
           
-          ### � **Common Quick Fixes:**
+          ### **Common Quick Fixes:**
           \`\`\`bash
           # Fix Python formatting
           cd backend && black . && isort .
@@ -563,7 +541,7 @@ except Exception as e:
           ./run-tests.sh  # or run-tests.bat on Windows
           \`\`\`
           
-          **🚫 Merging is blocked until all checks pass.**
+          **Merging is blocked until all checks pass.**
           \`;
           
           await github.rest.issues.createComment({
@@ -591,9 +569,9 @@ except Exception as e:
               ("${{ needs.frontend-test.result }}" == "success" || "${{ needs.frontend-test.result }}" == "skipped") && 
               "${{ needs.security-scan.result }}" == "success" && 
               ("${{ needs.docker-build.result }}" == "success" || "${{ needs.docker-build.result }}" == "skipped") ]]; then
-          echo "✅ All critical checks passed!"
+          echo "All critical checks passed!"
           exit 0
         else
-          echo "❌ Some critical checks failed!"
+          echo " Some critical checks failed!"
           exit 1
         fi
