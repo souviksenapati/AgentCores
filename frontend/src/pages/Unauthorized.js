@@ -14,21 +14,23 @@ const Unauthorized = () => {
           title: 'Login Required',
           description: message || 'Please log in to access this page.',
           action: 'Go to Login',
-          actionPath: '/login'
+          actionPath: '/login',
         };
       case 'access_denied':
         return {
           title: 'Access Denied',
-          description: message || 'You don\'t have permission to access this page.',
+          description:
+            message || "You don't have permission to access this page.",
           action: 'Go to Dashboard',
-          actionPath: '/dashboard'
+          actionPath: '/dashboard',
         };
       default:
         return {
           title: 'Access Denied',
-          description: 'You don\'t have permission to access this page. Please contact your administrator if you believe this is an error.',
+          description:
+            "You don't have permission to access this page. Please contact your administrator if you believe this is an error.",
           action: 'Go to Dashboard',
-          actionPath: '/dashboard'
+          actionPath: '/dashboard',
         };
     }
   };
@@ -45,11 +47,14 @@ const Unauthorized = () => {
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
           {errorDetails.description}
         </Typography>
-        
+
         {reason && (
           <Alert severity="warning" sx={{ mb: 3, textAlign: 'left' }}>
             <Typography variant="body2">
-              <strong>Reason:</strong> {reason === 'auth_required' ? 'Authentication required' : 'Insufficient permissions'}
+              <strong>Reason:</strong>{' '}
+              {reason === 'auth_required'
+                ? 'Authentication required'
+                : 'Insufficient permissions'}
             </Typography>
             {from && (
               <Typography variant="body2">
@@ -67,7 +72,7 @@ const Unauthorized = () => {
           >
             {errorDetails.action}
           </Button>
-          
+
           {from && reason === 'auth_required' && (
             <Button
               variant="outlined"

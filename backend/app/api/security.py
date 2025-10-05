@@ -6,14 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_tenant_id
-from app.database import get_db
+from app.auth import get_current_user, get_db, get_tenant_id
 from app.models.database import SecurityEvent, User, UserRole
-from app.schemas import (
-    SecurityAuditResponse,
-    SecurityDashboardResponse,
-    SecurityEventResponse,
-)
+
+# Using local SecurityAuditResponse, SecurityDashboardResponse definitions
 
 router = APIRouter()
 
@@ -113,7 +109,7 @@ async def get_security_dashboard(
         db.query(User)
         .filter(
             User.tenant_id == tenant_id,
-            User.is_active == True,
+            User.is_active.is_(True),
             User.last_activity >= datetime.utcnow() - timedelta(minutes=30),
         )
         .count()
@@ -137,10 +133,10 @@ async def get_security_dashboard(
     formatted_events = []
     for event in recent_events:
         user_email = "unknown"
-        if event.user_id:
+        if getattr(event, "user_id", None):
             user = db.query(User).filter(User.id == event.user_id).first()
             if user:
-                user_email = user.email
+                user_email = str(user.email)
 
         formatted_events.append(
             {
@@ -168,7 +164,7 @@ async def get_security_dashboard(
                 int(
                     (datetime.utcnow() - current_user.last_login).total_seconds() * 1000
                 )
-                if current_user.last_login
+                if getattr(current_user, "last_login", None)
                 else 0
             ),
             "last_activity": (
@@ -176,7 +172,7 @@ async def get_security_dashboard(
                     (datetime.utcnow() - current_user.last_activity).total_seconds()
                     * 1000
                 )
-                if current_user.last_activity
+                if getattr(current_user, "last_activity", None)
                 else 0
             ),
             "time_until_expiry": 30 * 60 * 1000,  # 30 minutes in ms
@@ -257,7 +253,9 @@ async def get_user_management_data(
 
     # Get all users in tenant
     users = (
-        db.query(User).filter(User.tenant_id == tenant_id, User.is_active == True).all()
+        db.query(User)
+        .filter(User.tenant_id == tenant_id, User.is_active.is_(True))
+        .all()
     )
 
     # Format user data
@@ -270,9 +268,15 @@ async def get_user_management_data(
                 "name": user.full_name,
                 "role": user.role.value,
                 "department": user.department,
-                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "last_login": (
+                    user.last_login.isoformat()
+                    if getattr(user, "last_login", None)
+                    else None
+                ),
                 "last_activity": (
-                    user.last_activity.isoformat() if user.last_activity else None
+                    user.last_activity.isoformat()
+                    if getattr(user, "last_activity", None)
+                    else None
                 ),
                 "is_active": user.is_active,
                 "mfa_enabled": user.mfa_enabled,
@@ -284,7 +288,7 @@ async def get_user_management_data(
     # Count users by role
     users_by_role = {}
     for role in UserRole:
-        count = sum(1 for user in users if user.role == role)
+        count = sum(1 for user in users if getattr(user, "role", None) == role)
         users_by_role[role.value] = count
 
     return UserManagementResponse(
@@ -293,19 +297,19 @@ async def get_user_management_data(
 
 
 # Log Security Event Endpoint
-@router.post("/security/events")
+@router.post("/security/events", response_model=None)
 async def log_security_event(
     event_type: str,
     event_data: Dict[str, Any],
+    request: Request,
     severity: str = "info",
-    request: Request = None,
     current_user: User = Depends(get_current_user),
     tenant_id: str = Depends(get_tenant_id),
     db: Session = Depends(get_db),
 ):
     """Log a security event"""
     # Get client info
-    ip_address = request.client.host if request else None
+    ip_address = request.client.host if request and request.client else None
     user_agent = request.headers.get("user-agent") if request else None
 
     # Calculate risk score based on event type and context
@@ -369,8 +373,8 @@ def calculate_security_score(tenant_id: str, db: Session) -> int:
         db.query(User)
         .filter(
             User.tenant_id == tenant_id,
-            User.is_active == True,
-            User.mfa_enabled == False,
+            User.is_active.is_(True),
+            User.mfa_enabled.is_(False),
             User.role.in_([UserRole.OWNER, UserRole.ADMIN]),
         )
         .count()

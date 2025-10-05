@@ -36,11 +36,11 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { Menu, MenuItem, Chip } from '@mui/material';
-import { 
-  getMenuItemsByCategory, 
-  MENU_CATEGORIES, 
-  getRoleDisplayName, 
-  getRoleColor 
+import {
+  getMenuItemsByCategory,
+  MENU_CATEGORIES,
+  getRoleDisplayName,
+  getRoleColor,
 } from '../utils/rolePermissions';
 
 const drawerWidth = 240;
@@ -60,22 +60,23 @@ export default function AppLayout({ children }) {
   // Get role-based menu items
   const menuItemsByCategory = getMenuItemsByCategory(user?.role);
   const sortedCategories = Object.keys(menuItemsByCategory).sort(
-    (a, b) => (MENU_CATEGORIES[a]?.order || 999) - (MENU_CATEGORIES[b]?.order || 999)
+    (a, b) =>
+      (MENU_CATEGORIES[a]?.order || 999) - (MENU_CATEGORIES[b]?.order || 999)
   );
 
   const handleDrawerToggle = () => {
-    if (isMdUp) setOpen((prev) => !prev);
-    else setMobileOpen((prev) => !prev);
+    if (isMdUp) setOpen(prev => !prev);
+    else setMobileOpen(prev => !prev);
   };
 
-  const handleCategoryToggle = (category) => {
+  const handleCategoryToggle = category => {
     setExpandedCategories(prev => ({
       ...prev,
-      [category]: !prev[category]
+      [category]: !prev[category],
     }));
   };
 
-  const handleUserMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleUserMenu = event => setAnchorEl(event.currentTarget);
   const handleUserMenuClose = () => setAnchorEl(null);
   const handleLogout = () => {
     logout();
@@ -85,22 +86,41 @@ export default function AppLayout({ children }) {
 
   // Find current page for title
   const allMenuItems = Object.values(menuItemsByCategory).flat();
-  const currentMenuItem = allMenuItems.find(item => 
-    location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+  const currentMenuItem = allMenuItems.find(
+    item =>
+      location.pathname === item.to ||
+      location.pathname.startsWith(item.to + '/')
   );
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar sx={{ px: 1, minHeight: 64 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: open ? 'space-between' : 'center' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            justifyContent: open ? 'space-between' : 'center',
+          }}
+        >
           {open && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <SmartToy fontSize="small" />
-              <Typography variant="subtitle1" fontWeight={700}>AgentCores</Typography>
+              <Typography variant="subtitle1" fontWeight={700}>
+                AgentCores
+              </Typography>
             </Box>
           )}
           <IconButton onClick={handleDrawerToggle} size="small">
-            {isMdUp ? (open ? <ChevronLeft /> : <ChevronRight />) : <ChevronLeft />}
+            {isMdUp ? (
+              open ? (
+                <ChevronLeft />
+              ) : (
+                <ChevronRight />
+              )
+            ) : (
+              <ChevronLeft />
+            )}
           </IconButton>
         </Box>
       </Toolbar>
@@ -125,8 +145,13 @@ export default function AppLayout({ children }) {
               )}
             </Box>
           ) : (
-            <Tooltip title={`${tenant.name} - ${getRoleDisplayName(user?.role)}`} placement="right">
-              <Avatar sx={{ width: 32, height: 32 }}>{(tenant.name || 'T').charAt(0).toUpperCase()}</Avatar>
+            <Tooltip
+              title={`${tenant.name} - ${getRoleDisplayName(user?.role)}`}
+              placement="right"
+            >
+              <Avatar sx={{ width: 32, height: 32 }}>
+                {(tenant.name || 'T').charAt(0).toUpperCase()}
+              </Avatar>
             </Tooltip>
           )}
         </Box>
@@ -134,7 +159,7 @@ export default function AppLayout({ children }) {
       <Divider />
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
         <List sx={{ py: 0 }}>
-          {sortedCategories.map((category) => {
+          {sortedCategories.map(category => {
             const categoryItems = menuItemsByCategory[category];
             const categoryConfig = MENU_CATEGORIES[category];
             const isExpanded = expandedCategories[category] !== false; // default expanded
@@ -155,16 +180,30 @@ export default function AppLayout({ children }) {
                     }}
                     onClick={() => handleCategoryToggle(category)}
                   >
-                    <Typography variant="caption" fontWeight={600} color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      fontWeight={600}
+                      color="text.secondary"
+                    >
                       {categoryConfig?.label || category}
                     </Typography>
-                    {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                    {isExpanded ? (
+                      <ExpandLess fontSize="small" />
+                    ) : (
+                      <ExpandMore fontSize="small" />
+                    )}
                   </ListSubheader>
                 )}
-                
-                <Collapse in={isExpanded || !open} timeout="auto" unmountOnExit={false}>
-                  {categoryItems.map((item) => {
-                    const selected = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+
+                <Collapse
+                  in={isExpanded || !open}
+                  timeout="auto"
+                  unmountOnExit={false}
+                >
+                  {categoryItems.map(item => {
+                    const selected =
+                      location.pathname === item.to ||
+                      location.pathname.startsWith(item.to + '/');
                     const button = (
                       <ListItemButton
                         component={RouterLink}
@@ -177,22 +216,30 @@ export default function AppLayout({ children }) {
                           ml: open && showCategoryHeader ? 1 : 0, // indent under categories when expanded
                         }}
                       >
-                        <ListItemIcon sx={{
-                          minWidth: 36,
-                          mr: open ? 1.5 : 0,
-                          justifyContent: 'center',
-                        }}>
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 36,
+                            mr: open ? 1.5 : 0,
+                            justifyContent: 'center',
+                          }}
+                        >
                           {item.icon}
                         </ListItemIcon>
                         {open && <ListItemText primary={item.label} />}
                       </ListItemButton>
                     );
                     return (
-                      <ListItem key={item.id} disablePadding sx={{ display: 'block' }}>
+                      <ListItem
+                        key={item.id}
+                        disablePadding
+                        sx={{ display: 'block' }}
+                      >
                         {open ? (
                           button
                         ) : (
-                          <Tooltip title={item.label} placement="right">{button}</Tooltip>
+                          <Tooltip title={item.label} placement="right">
+                            {button}
+                          </Tooltip>
                         )}
                       </ListItem>
                     );
@@ -205,18 +252,34 @@ export default function AppLayout({ children }) {
       </Box>
       <Divider />
       {/* Footer area */}
-      <Box sx={{ p: open ? 1.5 : 1, display: 'flex', justifyContent: open ? 'space-between' : 'center', alignItems: 'center' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ display: open ? 'block' : 'none' }}>
+      <Box
+        sx={{
+          p: open ? 1.5 : 1,
+          display: 'flex',
+          justifyContent: open ? 'space-between' : 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: open ? 'block' : 'none' }}
+        >
           v{process.env.REACT_APP_VERSION || '1.0.0'}
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: open ? 'block' : 'none' }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: open ? 'block' : 'none' }}
+        >
           {process.env.REACT_APP_ENVIRONMENT || 'development'}
         </Typography>
       </Box>
     </Box>
   );
 
-  const container = typeof window !== 'undefined' ? () => window.document.body : undefined;
+  const container =
+    typeof window !== 'undefined' ? () => window.document.body : undefined;
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -225,13 +288,20 @@ export default function AppLayout({ children }) {
       <AppBar
         position="fixed"
         sx={{
-          zIndex: (t) => t.zIndex.drawer + 1,
+          zIndex: t => t.zIndex.drawer + 1,
           ml: isMdUp ? (open ? `${drawerWidth}px` : `${miniWidth}px`) : 0,
-          width: isMdUp ? `calc(100% - ${open ? drawerWidth : miniWidth}px)` : '100%',
+          width: isMdUp
+            ? `calc(100% - ${open ? drawerWidth : miniWidth}px)`
+            : '100%',
         }}
       >
         <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1 }}>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 1 }}
+          >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
@@ -242,7 +312,9 @@ export default function AppLayout({ children }) {
             {user?.avatar_url ? (
               <Avatar src={user.avatar_url} />
             ) : (
-              <Avatar><AccountCircle /></Avatar>
+              <Avatar>
+                <AccountCircle />
+              </Avatar>
             )}
           </IconButton>
           <Menu
@@ -254,22 +326,37 @@ export default function AppLayout({ children }) {
           >
             <MenuItem disabled>
               <Box>
-                <Typography variant="body2" color="text.secondary">{user?.email}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {user?.email}
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Role: {getRoleDisplayName(user?.role)}
                 </Typography>
               </Box>
             </MenuItem>
             <Divider />
-            <MenuItem component={RouterLink} to="/profile" onClick={handleUserMenuClose}>
+            <MenuItem
+              component={RouterLink}
+              to="/profile"
+              onClick={handleUserMenuClose}
+            >
               <AccountCircle style={{ marginRight: 8 }} /> Profile
             </MenuItem>
             {user?.role === 'owner' && (
               <>
-                <MenuItem component={RouterLink} to="/tenant/settings" onClick={handleUserMenuClose}>
-                  <SettingsIcon style={{ marginRight: 8 }} /> Organization Settings
+                <MenuItem
+                  component={RouterLink}
+                  to="/tenant/settings"
+                  onClick={handleUserMenuClose}
+                >
+                  <SettingsIcon style={{ marginRight: 8 }} /> Organization
+                  Settings
                 </MenuItem>
-                <MenuItem component={RouterLink} to="/tenant/users" onClick={handleUserMenuClose}>
+                <MenuItem
+                  component={RouterLink}
+                  to="/tenant/users"
+                  onClick={handleUserMenuClose}
+                >
                   <Group style={{ marginRight: 8 }} /> Manage Users
                 </MenuItem>
               </>
@@ -283,7 +370,14 @@ export default function AppLayout({ children }) {
       </AppBar>
 
       {/* Side Drawer */}
-      <Box component="nav" sx={{ width: { md: open ? drawerWidth : miniWidth }, flexShrink: { md: 0 } }} aria-label="sidebar navigation">
+      <Box
+        component="nav"
+        sx={{
+          width: { md: open ? drawerWidth : miniWidth },
+          flexShrink: { md: 0 },
+        }}
+        aria-label="sidebar navigation"
+      >
         {/* Mobile */}
         <Drawer
           container={container}
@@ -291,7 +385,13 @@ export default function AppLayout({ children }) {
           open={!isMdUp && mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
-          sx={{ display: { xs: 'block', md: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+            },
+          }}
         >
           {drawerContent}
         </Drawer>
@@ -308,10 +408,11 @@ export default function AppLayout({ children }) {
               boxSizing: 'border-box',
               width: open ? drawerWidth : miniWidth,
               overflowX: 'hidden',
-              transition: (t) => t.transitions.create('width', {
-                easing: t.transitions.easing.sharp,
-                duration: t.transitions.duration.enteringScreen,
-              }),
+              transition: t =>
+                t.transitions.create('width', {
+                  easing: t.transitions.easing.sharp,
+                  duration: t.transitions.duration.enteringScreen,
+                }),
             },
           }}
         >
@@ -320,12 +421,15 @@ export default function AppLayout({ children }) {
       </Box>
 
       {/* Main content */}
-      <Box component="main" sx={{
-        flexGrow: 1,
-        p: 2,
-        mt: 8,
-        width: '100%',
-      }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 2,
+          mt: 8,
+          width: '100%',
+        }}
+      >
         {children}
       </Box>
     </Box>

@@ -34,16 +34,16 @@ import {
 
 // Define user roles with hierarchy
 export const USER_ROLES = {
-  OWNER: 'owner',           // Organization owner - full access
-  ADMIN: 'admin',           // Administrator - almost full access
-  MANAGER: 'manager',       // Team manager - team and project management
-  DEVELOPER: 'developer',   // Developer - agent creation and technical features
-  ANALYST: 'analyst',       // Data analyst - analytics and reporting
+  OWNER: 'owner', // Organization owner - full access
+  ADMIN: 'admin', // Administrator - almost full access
+  MANAGER: 'manager', // Team manager - team and project management
+  DEVELOPER: 'developer', // Developer - agent creation and technical features
+  ANALYST: 'analyst', // Data analyst - analytics and reporting
   INDIVIDUAL: 'individual', // Individual user - personal workspace
-  OPERATOR: 'operator',     // Operations - monitoring and maintenance
-  VIEWER: 'viewer',         // Read-only access to most features
-  GUEST: 'guest',           // Limited read-only access
-  DEMO: 'demo',             // Demo mode - showcase features with limited access
+  OPERATOR: 'operator', // Operations - monitoring and maintenance
+  VIEWER: 'viewer', // Read-only access to most features
+  GUEST: 'guest', // Limited read-only access
+  DEMO: 'demo', // Demo mode - showcase features with limited access
 };
 
 // Define permissions
@@ -52,33 +52,33 @@ export const PERMISSIONS = {
   VIEW_DASHBOARD: 'view_dashboard',
   VIEW_ANALYTICS: 'view_analytics',
   VIEW_ADVANCED_ANALYTICS: 'view_advanced_analytics',
-  
+
   // Agents Management
   VIEW_AGENTS: 'view_agents',
   CREATE_AGENTS: 'create_agents',
   EDIT_AGENTS: 'edit_agents',
   DELETE_AGENTS: 'delete_agents',
   MANAGE_AGENT_PERMISSIONS: 'manage_agent_permissions',
-  
+
   // Tasks Management
   VIEW_TASKS: 'view_tasks',
   CREATE_TASKS: 'create_tasks',
   EDIT_TASKS: 'edit_tasks',
   DELETE_TASKS: 'delete_tasks',
   VIEW_TASK_DETAILS: 'view_task_details',
-  
+
   // Cost & Billing
   VIEW_COSTS: 'view_costs',
   MANAGE_BILLING: 'manage_billing',
   VIEW_COST_ANALYTICS: 'view_cost_analytics',
   SET_COST_LIMITS: 'set_cost_limits',
-  
+
   // Integrations & APIs
   VIEW_INTEGRATIONS: 'view_integrations',
   MANAGE_INTEGRATIONS: 'manage_integrations',
   VIEW_API_KEYS: 'view_api_keys',
   MANAGE_API_KEYS: 'manage_api_keys',
-  
+
   // User & Organization Management
   VIEW_USERS: 'view_users',
   MANAGE_USERS: 'manage_users',
@@ -86,28 +86,28 @@ export const PERMISSIONS = {
   MANAGE_ROLES: 'manage_roles',
   VIEW_ORG_SETTINGS: 'view_org_settings',
   MANAGE_ORG_SETTINGS: 'manage_org_settings',
-  
+
   // Monitoring & Logs
   VIEW_ACTIVITY: 'view_activity',
   VIEW_AUDIT_LOGS: 'view_audit_logs',
   VIEW_SYSTEM_LOGS: 'view_system_logs',
   MANAGE_MONITORING: 'manage_monitoring',
-  
+
   // Security & Compliance
   VIEW_SECURITY: 'view_security',
   MANAGE_SECURITY: 'manage_security',
   VIEW_COMPLIANCE: 'view_compliance',
   MANAGE_COMPLIANCE: 'manage_compliance',
-  
+
   // System Administration
   MANAGE_SYSTEM: 'manage_system',
   VIEW_SYSTEM_HEALTH: 'view_system_health',
   MANAGE_BACKUPS: 'manage_backups',
-  
+
   // Development & Debugging
   VIEW_DEBUG_INFO: 'view_debug_info',
   MANAGE_DEVELOPMENT: 'manage_development',
-  
+
   // Support & Documentation
   VIEW_SUPPORT: 'view_support',
   MANAGE_SUPPORT: 'manage_support',
@@ -119,9 +119,9 @@ export const PERMISSIONS = {
 export const ROLE_PERMISSIONS = {
   [USER_ROLES.OWNER]: [
     // Full access to everything
-    ...Object.values(PERMISSIONS)
+    ...Object.values(PERMISSIONS),
   ],
-  
+
   [USER_ROLES.ADMIN]: [
     // Almost full access, except critical org settings
     PERMISSIONS.VIEW_DASHBOARD,
@@ -162,7 +162,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.MANAGE_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.MANAGER]: [
     // Team and project management focus
     PERMISSIONS.VIEW_DASHBOARD,
@@ -186,7 +186,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.DEVELOPER]: [
     // Technical development focus
     PERMISSIONS.VIEW_DASHBOARD,
@@ -209,7 +209,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.ANALYST]: [
     // Analytics and reporting focus
     PERMISSIONS.VIEW_DASHBOARD,
@@ -225,7 +225,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.OPERATOR]: [
     // Operations and monitoring focus
     PERMISSIONS.VIEW_DASHBOARD,
@@ -242,7 +242,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.VIEWER]: [
     // Read-only access to most features
     PERMISSIONS.VIEW_DASHBOARD,
@@ -257,7 +257,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPORT,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.GUEST]: [
     // Very limited read-only access
     PERMISSIONS.VIEW_DASHBOARD,
@@ -265,7 +265,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_TASKS,
     PERMISSIONS.VIEW_DOCS,
   ],
-  
+
   [USER_ROLES.INDIVIDUAL]: [
     // Individual user - personal workspace without organization features
     PERMISSIONS.VIEW_DASHBOARD,
@@ -315,7 +315,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_DASHBOARD],
     category: 'core',
   },
-  
+
   // Agent Management
   {
     id: 'agents',
@@ -333,7 +333,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.CREATE_AGENTS],
     category: 'agents',
   },
-  
+
   // Task Management
   {
     id: 'tasks',
@@ -351,7 +351,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_TASKS, PERMISSIONS.MANAGE_MONITORING],
     category: 'tasks',
   },
-  
+
   // Analytics & Reporting
   {
     id: 'analytics',
@@ -377,7 +377,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_ANALYTICS],
     category: 'analytics',
   },
-  
+
   // Cost Management
   {
     id: 'costs',
@@ -395,7 +395,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.MANAGE_BILLING],
     category: 'billing',
   },
-  
+
   // Monitoring & Operations
   {
     id: 'activity',
@@ -429,7 +429,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_SYSTEM_LOGS],
     category: 'monitoring',
   },
-  
+
   // Integrations & APIs
   {
     id: 'integrations',
@@ -455,7 +455,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.MANAGE_INTEGRATIONS],
     category: 'integrations',
   },
-  
+
   // Development & Debug
   {
     id: 'debug',
@@ -473,7 +473,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.MANAGE_DEVELOPMENT],
     category: 'development',
   },
-  
+
   // Security & Compliance
   {
     id: 'security',
@@ -499,7 +499,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_COMPLIANCE],
     category: 'security',
   },
-  
+
   // User & Organization Management
   {
     id: 'users',
@@ -525,7 +525,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_ORG_SETTINGS],
     category: 'organization',
   },
-  
+
   // System Administration
   {
     id: 'system-admin',
@@ -551,7 +551,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.MANAGE_SYSTEM],
     category: 'admin',
   },
-  
+
   // Notifications
   {
     id: 'notifications',
@@ -561,7 +561,7 @@ export const NAVIGATION_ITEMS = [
     permissions: [PERMISSIONS.VIEW_ACTIVITY],
     category: 'misc',
   },
-  
+
   // External & Support
   {
     id: 'role-demo',
@@ -623,27 +623,27 @@ export const hasAnyPermission = (userRole, permissions) => {
   return permissions.some(permission => hasPermission(userRole, permission));
 };
 
-export const getAccessibleMenuItems = (userRole) => {
-  return NAVIGATION_ITEMS.filter(item => 
+export const getAccessibleMenuItems = userRole => {
+  return NAVIGATION_ITEMS.filter(item =>
     hasAnyPermission(userRole, item.permissions)
   );
 };
 
-export const getMenuItemsByCategory = (userRole) => {
+export const getMenuItemsByCategory = userRole => {
   const accessibleItems = getAccessibleMenuItems(userRole);
   const categorized = {};
-  
+
   accessibleItems.forEach(item => {
     if (!categorized[item.category]) {
       categorized[item.category] = [];
     }
     categorized[item.category].push(item);
   });
-  
+
   return categorized;
 };
 
-export const getRoleDisplayName = (role) => {
+export const getRoleDisplayName = role => {
   const roleNames = {
     [USER_ROLES.OWNER]: 'Owner',
     [USER_ROLES.ADMIN]: 'Administrator',
@@ -659,7 +659,7 @@ export const getRoleDisplayName = (role) => {
   return roleNames[role] || role;
 };
 
-export const getRoleColor = (role) => {
+export const getRoleColor = role => {
   const roleColors = {
     [USER_ROLES.OWNER]: 'error',
     [USER_ROLES.ADMIN]: 'warning',

@@ -1,9 +1,6 @@
 """Chat Service for Agent Communication"""
 
-import json
 import os
-import uuid
-from datetime import datetime
 from typing import Any, Dict, List
 
 import httpx

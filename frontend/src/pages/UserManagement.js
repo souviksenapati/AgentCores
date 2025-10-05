@@ -26,7 +26,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { 
+import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   Send as SendIcon,
@@ -46,13 +46,28 @@ const UserManagement = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, invitation: null });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    invitation: null,
+  });
 
   const roles = [
     { value: 'admin', label: 'Admin', description: 'Full system access' },
-    { value: 'manager', label: 'Manager', description: 'Team and project management' },
-    { value: 'developer', label: 'Developer', description: 'Development and deployment' },
-    { value: 'analyst', label: 'Analyst', description: 'Data analysis and reporting' },
+    {
+      value: 'manager',
+      label: 'Manager',
+      description: 'Team and project management',
+    },
+    {
+      value: 'developer',
+      label: 'Developer',
+      description: 'Development and deployment',
+    },
+    {
+      value: 'analyst',
+      label: 'Analyst',
+      description: 'Data analysis and reporting',
+    },
     { value: 'operator', label: 'Operator', description: 'System operations' },
     { value: 'viewer', label: 'Viewer', description: 'Read-only access' },
   ];
@@ -78,14 +93,14 @@ const UserManagement = () => {
     }
   };
 
-  const handleInviteFormChange = (e) => {
+  const handleInviteFormChange = e => {
     setInviteForm({
       ...inviteForm,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSendInvitation = async (e) => {
+  const handleSendInvitation = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -99,15 +114,15 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Invitation error:', error);
       setError(
-        error.response?.data?.detail || 
-        'Failed to send invitation. Please try again.'
+        error.response?.data?.detail ||
+          'Failed to send invitation. Please try again.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteInvitation = async (invitationId) => {
+  const handleDeleteInvitation = async invitationId => {
     try {
       await authAPI.deleteInvitation(invitationId);
       setSuccess('Invitation deleted successfully');
@@ -119,7 +134,7 @@ const UserManagement = () => {
     }
   };
 
-  const getStatusChip = (status) => {
+  const getStatusChip = status => {
     const statusConfig = {
       pending: { color: 'warning', label: 'Pending' },
       accepted: { color: 'success', label: 'Accepted' },
@@ -129,10 +144,10 @@ const UserManagement = () => {
     return <Chip size="small" color={config.color} label={config.label} />;
   };
 
-  const getRoleChip = (role) => {
+  const getRoleChip = role => {
     const roleColors = {
       owner: 'primary',
-      admin: 'secondary', 
+      admin: 'secondary',
       manager: 'info',
       developer: 'success',
       analyst: 'warning',
@@ -140,9 +155,9 @@ const UserManagement = () => {
       viewer: 'default',
     };
     return (
-      <Chip 
-        size="small" 
-        color={roleColors[role] || 'default'} 
+      <Chip
+        size="small"
+        color={roleColors[role] || 'default'}
         label={role.charAt(0).toUpperCase() + role.slice(1)}
         variant="outlined"
       />
@@ -156,7 +171,8 @@ const UserManagement = () => {
     return (
       <Container maxWidth="md" sx={{ mt: 4 }}>
         <Alert severity="warning">
-          You don't have permission to manage users. Only organization owners and admins can invite users.
+          You don't have permission to manage users. Only organization owners
+          and admins can invite users.
         </Alert>
       </Container>
     );
@@ -167,19 +183,19 @@ const UserManagement = () => {
       <Typography variant="h4" gutterBottom>
         User Management
       </Typography>
-      
+
       {/* Invite User Form */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Invite New User
         </Typography>
-        
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-        
+
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
             {success}
@@ -208,7 +224,7 @@ const UserManagement = () => {
                   onChange={handleInviteFormChange}
                   label="Role"
                 >
-                  {roles.map((role) => (
+                  {roles.map(role => (
                     <MenuItem key={role.value} value={role.value}>
                       <Box>
                         <Typography variant="body1">{role.label}</Typography>
@@ -226,7 +242,9 @@ const UserManagement = () => {
                 type="submit"
                 fullWidth
                 variant="contained"
-                startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
+                startIcon={
+                  loading ? <CircularProgress size={20} /> : <SendIcon />
+                }
                 disabled={loading}
                 sx={{ height: 56 }}
               >
@@ -245,15 +263,23 @@ const UserManagement = () => {
         <>
           {/* Pending Invitations */}
           <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 2,
+              }}
+            >
               <Typography variant="h6">
-                Pending Invitations ({invitations.filter(inv => inv.status === 'pending').length})
+                Pending Invitations (
+                {invitations.filter(inv => inv.status === 'pending').length})
               </Typography>
               <IconButton onClick={loadData} color="primary">
                 <RefreshIcon />
               </IconButton>
             </Box>
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -266,7 +292,7 @@ const UserManagement = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {invitations.map((invitation) => (
+                  {invitations.map(invitation => (
                     <TableRow key={invitation.id}>
                       <TableCell>{invitation.email}</TableCell>
                       <TableCell>{getRoleChip(invitation.role)}</TableCell>
@@ -278,7 +304,9 @@ const UserManagement = () => {
                         {invitation.status === 'pending' && (
                           <IconButton
                             color="error"
-                            onClick={() => setDeleteDialog({ open: true, invitation })}
+                            onClick={() =>
+                              setDeleteDialog({ open: true, invitation })
+                            }
                             size="small"
                           >
                             <DeleteIcon />
@@ -304,7 +332,7 @@ const UserManagement = () => {
             <Typography variant="h6" gutterBottom>
               Active Users ({users.length})
             </Typography>
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -317,21 +345,20 @@ const UserManagement = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {users.map((userData) => (
+                  {users.map(userData => (
                     <TableRow key={userData.id}>
                       <TableCell>{userData.full_name}</TableCell>
                       <TableCell>{userData.email}</TableCell>
                       <TableCell>{getRoleChip(userData.role)}</TableCell>
                       <TableCell>
-                        {userData.last_login ? 
-                          new Date(userData.last_login).toLocaleDateString() : 
-                          'Never'
-                        }
+                        {userData.last_login
+                          ? new Date(userData.last_login).toLocaleDateString()
+                          : 'Never'}
                       </TableCell>
                       <TableCell>
-                        <Chip 
-                          size="small" 
-                          color="success" 
+                        <Chip
+                          size="small"
+                          color="success"
                           label="Active"
                           variant="outlined"
                         />
@@ -353,15 +380,17 @@ const UserManagement = () => {
         <DialogTitle>Delete Invitation</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the invitation for {deleteDialog.invitation?.email}?
-            This action cannot be undone.
+            Are you sure you want to delete the invitation for{' '}
+            {deleteDialog.invitation?.email}? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog({ open: false, invitation: null })}>
+          <Button
+            onClick={() => setDeleteDialog({ open: false, invitation: null })}
+          >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={() => handleDeleteInvitation(deleteDialog.invitation?.id)}
             color="error"
             variant="contained"

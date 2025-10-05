@@ -1,12 +1,10 @@
 import uuid
-from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, Column, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from .database import Base, TenantMixin, TimestampMixin
+from app.models.database import Base, TenantMixin, TimestampMixin
 
 
 class ChatMessage(Base, TenantMixin, TimestampMixin):
@@ -19,7 +17,7 @@ class ChatMessage(Base, TenantMixin, TimestampMixin):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     message = Column(Text, nullable=False)
     sender = Column(String(20), nullable=False)  # 'user' or 'agent'
-    metadata = Column(JSON, default=dict)
+    message_metadata = Column(JSON, default=dict)
 
     # Relationships
     agent = relationship("Agent")
@@ -39,5 +37,5 @@ class ChatMessage(Base, TenantMixin, TimestampMixin):
             "message": self.message,
             "sender": self.sender,
             "timestamp": self.created_at.isoformat(),
-            "metadata": self.metadata,
+            "metadata": self.message_metadata,
         }

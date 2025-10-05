@@ -3,10 +3,12 @@ Alembic Configuration for Enterprise Database Migrations
 Built for MVP simplicity, designed for billion-dollar platform scale.
 """
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-from logging.config import fileConfig
 import os
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # Import our models
 from app.models.database import Base

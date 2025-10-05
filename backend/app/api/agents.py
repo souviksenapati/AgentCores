@@ -1,11 +1,10 @@
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, get_tenant_id, require_admin_or_member_role
 from app.database import get_db
-from app.models.chat import ChatMessage as ChatMessageModel
 from app.models.database import User
 from app.schemas import (
     Agent,
@@ -13,17 +12,12 @@ from app.schemas import (
     AgentListResponse,
     AgentStatus,
     AgentUpdate,
-    ChatMessage,
     ChatRequest,
     ChatResponse,
     Task,
     TaskCreate,
     TaskExecution,
-    TaskExecutionResponse,
     TaskListResponse,
-    TaskStatus,
-    TaskUpdate,
-    UserResponse,
 )
 from app.services.agent_service import AgentService, TaskService
 

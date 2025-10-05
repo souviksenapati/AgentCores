@@ -1,11 +1,13 @@
 # Test configuration for AgentCores backend
 import os
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.database import get_individual_db, get_org_db
 from app.main import app
-from app.database import get_org_db, get_individual_db
 
 # Test database URL
 TEST_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test_agentcores.db")

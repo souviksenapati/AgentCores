@@ -44,8 +44,7 @@ const AcceptInvitation = () => {
         setInvitationData(response.data);
       } catch (error) {
         setError(
-          error.response?.data?.detail || 
-          'Invalid or expired invitation link'
+          error.response?.data?.detail || 'Invalid or expired invitation link'
         );
       } finally {
         setValidating(false);
@@ -55,7 +54,7 @@ const AcceptInvitation = () => {
     validateInvitation();
   }, [searchParams]);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -78,7 +77,7 @@ const AcceptInvitation = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -99,14 +98,14 @@ const AcceptInvitation = () => {
 
       const response = await authAPI.acceptInvitation(acceptData);
       const authData = response.data;
-      
+
       login(authData);
       navigate('/dashboard');
     } catch (error) {
       console.error('Invitation acceptance error:', error);
       setError(
-        error.response?.data?.detail || 
-        'Failed to accept invitation. Please try again.'
+        error.response?.data?.detail ||
+          'Failed to accept invitation. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -201,7 +200,7 @@ const AcceptInvitation = () => {
           <Typography component="h1" variant="h4" gutterBottom>
             Accept Invitation
           </Typography>
-          
+
           <Box sx={{ mt: 2, mb: 3, textAlign: 'center' }}>
             <Typography variant="h6" color="primary">
               {invitationData.organization_name}
@@ -209,9 +208,9 @@ const AcceptInvitation = () => {
             <Typography variant="body1" sx={{ mt: 1 }}>
               You've been invited to join as:
             </Typography>
-            <Chip 
-              label={invitationData.role} 
-              color="primary" 
+            <Chip
+              label={invitationData.role}
+              color="primary"
               variant="outlined"
               sx={{ mt: 1, textTransform: 'capitalize' }}
             />
@@ -226,7 +225,11 @@ const AcceptInvitation = () => {
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ mt: 1, width: '100%' }}
+          >
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -289,12 +292,7 @@ const AcceptInvitation = () => {
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>
-              <Button
-                component={Link}
-                to="/login"
-                variant="text"
-                size="small"
-              >
+              <Button component={Link} to="/login" variant="text" size="small">
                 Back to Login
               </Button>
             </Box>

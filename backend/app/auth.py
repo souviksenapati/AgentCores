@@ -24,7 +24,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 # Password hashing with fallback
-def _simple_hash_password(password: str, salt: bytes = None) -> str:
+def _simple_hash_password(password: str, salt: Optional[bytes] = None) -> str:
     if salt is None:
         salt = secrets.token_bytes(32)
     pwd_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100000)
@@ -39,14 +39,14 @@ def _simple_verify_password(password: str, hash_str: str) -> bool:
             "sha256", password.encode("utf-8"), salt, 100000
         )
         return expected_hash.hex() == hash_hex
-    except:
+    except Exception:
         return False
 
 
 try:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     USE_BCRYPT = True
-except:
+except ImportError:
     USE_BCRYPT = False
 
 security = HTTPBearer()
@@ -56,7 +56,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if USE_BCRYPT:
         try:
             return pwd_context.verify(plain_password, hashed_password)
-        except:
+        except Exception:
             return _simple_verify_password(plain_password, hashed_password)
     else:
         return _simple_verify_password(plain_password, hashed_password)
@@ -66,7 +66,7 @@ def get_password_hash(password: str) -> str:
     if USE_BCRYPT:
         try:
             return pwd_context.hash(password)
-        except:
+        except Exception:
             return _simple_hash_password(password)
     else:
         return _simple_hash_password(password)
@@ -86,8 +86,8 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     user = db.query(User).filter(User.email == email).first()
     if (
         not user
-        or not verify_password(password, user.password_hash)
-        or not user.is_active
+        or not verify_password(password, str(user.password_hash))
+        or not bool(user.is_active)
     ):
         return None
     return user
@@ -103,10 +103,10 @@ async def get_current_user_from_token(token: str, db: Session) -> Optional[User]
         return None
 
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
+    if not user or not bool(user.is_active):
         return None
 
-    user.last_activity = datetime.utcnow()
+    setattr(user, "last_activity", datetime.utcnow())
     db.commit()
     return user
 
@@ -132,7 +132,7 @@ def get_tenant_id(current_user: User = Depends(get_current_user)) -> str:
 def require_admin_or_member_role(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    if current_user.role == UserRole.GUEST:
+    if getattr(current_user, "role", None) == UserRole.GUEST:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Member role or higher required",

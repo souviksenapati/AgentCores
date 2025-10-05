@@ -40,12 +40,12 @@ import {
   Preview as DemoIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  USER_ROLES, 
+import {
+  USER_ROLES,
   PERMISSIONS,
   ROLE_PERMISSIONS,
-  getAccessibleMenuItems, 
-  getRoleDisplayName, 
+  getAccessibleMenuItems,
+  getRoleDisplayName,
   getRoleColor,
 } from '../utils/rolePermissions';
 
@@ -68,15 +68,24 @@ export default function RoleDemo() {
   };
 
   const roleDescriptions = {
-    [USER_ROLES.OWNER]: 'Complete control over the organization, including billing, user management, and all system features.',
-    [USER_ROLES.ADMIN]: 'Almost full access to manage users, systems, and operations, excluding critical organization settings.',
-    [USER_ROLES.MANAGER]: 'Team and project management focus with ability to oversee agents, tasks, and team members.',
-    [USER_ROLES.DEVELOPER]: 'Technical focus on building and deploying agents, managing integrations, and development tools.',
-    [USER_ROLES.ANALYST]: 'Data analysis and reporting focus with access to analytics, metrics, and business intelligence.',
-    [USER_ROLES.OPERATOR]: 'Operations and monitoring focus with system health, maintenance, and performance oversight.',
-    [USER_ROLES.VIEWER]: 'Read-only access to most features for reviewing status, reports, and system information.',
-    [USER_ROLES.GUEST]: 'Very limited read-only access for external stakeholders or temporary access.',
-    [USER_ROLES.DEMO]: 'Demonstration mode showcasing platform capabilities with view-only access to key features.',
+    [USER_ROLES.OWNER]:
+      'Complete control over the organization, including billing, user management, and all system features.',
+    [USER_ROLES.ADMIN]:
+      'Almost full access to manage users, systems, and operations, excluding critical organization settings.',
+    [USER_ROLES.MANAGER]:
+      'Team and project management focus with ability to oversee agents, tasks, and team members.',
+    [USER_ROLES.DEVELOPER]:
+      'Technical focus on building and deploying agents, managing integrations, and development tools.',
+    [USER_ROLES.ANALYST]:
+      'Data analysis and reporting focus with access to analytics, metrics, and business intelligence.',
+    [USER_ROLES.OPERATOR]:
+      'Operations and monitoring focus with system health, maintenance, and performance oversight.',
+    [USER_ROLES.VIEWER]:
+      'Read-only access to most features for reviewing status, reports, and system information.',
+    [USER_ROLES.GUEST]:
+      'Very limited read-only access for external stakeholders or temporary access.',
+    [USER_ROLES.DEMO]:
+      'Demonstration mode showcasing platform capabilities with view-only access to key features.',
   };
 
   const getPermissionStatus = (role, permission) => {
@@ -118,7 +127,7 @@ export default function RoleDemo() {
         PERMISSIONS.MANAGE_SECURITY,
         PERMISSIONS.VIEW_SYSTEM_HEALTH,
       ],
-      'Development': [
+      Development: [
         PERMISSIONS.VIEW_INTEGRATIONS,
         PERMISSIONS.MANAGE_INTEGRATIONS,
         PERMISSIONS.VIEW_API_KEYS,
@@ -134,11 +143,12 @@ export default function RoleDemo() {
     return categories;
   };
 
-  const PermissionIcon = ({ hasPermission }) => (
-    hasPermission ? 
-      <CheckIcon color="success" fontSize="small" /> : 
+  const PermissionIcon = ({ hasPermission }) =>
+    hasPermission ? (
+      <CheckIcon color="success" fontSize="small" />
+    ) : (
       <CancelIcon color="error" fontSize="small" />
-  );
+    );
 
   const currentUserMenuItems = getAccessibleMenuItems(user.role);
   const currentUserPermissions = ROLE_PERMISSIONS[user.role] || [];
@@ -149,18 +159,20 @@ export default function RoleDemo() {
         Role-Based Access Control Demo
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Explore how different user roles access various features of the platform. 
-        Each role is designed with specific responsibilities and appropriate permissions.
+        Explore how different user roles access various features of the
+        platform. Each role is designed with specific responsibilities and
+        appropriate permissions.
       </Typography>
-      
+
       {user?.role === 'demo' && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <AlertTitle>Demo Mode Active</AlertTitle>
-          You are currently viewing the platform as a Demo user. This page shows you what 
-          permissions and access each role would have in a real deployment.
+          You are currently viewing the platform as a Demo user. This page shows
+          you what permissions and access each role would have in a real
+          deployment.
         </Alert>
       )}
-      
+
       <Grid container spacing={3}>
         {/* Current User Info */}
         <Grid item xs={12} md={4}>
@@ -172,7 +184,7 @@ export default function RoleDemo() {
             />
             <CardContent>
               <Box sx={{ mb: 2 }}>
-                <Chip 
+                <Chip
                   label={getRoleDisplayName(user.role)}
                   color={getRoleColor(user.role)}
                   sx={{ mb: 1 }}
@@ -182,17 +194,17 @@ export default function RoleDemo() {
                   and {currentUserPermissions.length} permissions.
                 </Typography>
               </Box>
-              
+
               <Typography variant="subtitle2" gutterBottom>
                 Your Available Features:
               </Typography>
               <List dense>
-                {currentUserMenuItems.slice(0, 10).map((item) => (
+                {currentUserMenuItems.slice(0, 10).map(item => (
                   <ListItem key={item.id} sx={{ py: 0.25 }}>
                     <ListItemIcon sx={{ minWidth: 32 }}>
                       {item.icon}
                     </ListItemIcon>
-                    <ListItemText 
+                    <ListItemText
                       primary={item.label}
                       primaryTypographyProps={{ variant: 'body2' }}
                     />
@@ -200,9 +212,12 @@ export default function RoleDemo() {
                 ))}
                 {currentUserMenuItems.length > 10 && (
                   <ListItem>
-                    <ListItemText 
+                    <ListItemText
                       primary={`... and ${currentUserMenuItems.length - 10} more`}
-                      primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
+                      primaryTypographyProps={{
+                        variant: 'caption',
+                        color: 'text.secondary',
+                      }}
                     />
                   </ListItem>
                 )}
@@ -219,29 +234,36 @@ export default function RoleDemo() {
                 Compare Different Roles
               </Typography>
               <Grid container spacing={1}>
-                {Object.values(USER_ROLES).map((role) => (
+                {Object.values(USER_ROLES).map(role => (
                   <Grid item xs={6} sm={4} md={3} key={role}>
-                    <Card 
-                      sx={{ 
+                    <Card
+                      sx={{
                         cursor: 'pointer',
                         border: selectedRole === role ? 2 : 1,
-                        borderColor: selectedRole === role ? `${getRoleColor(role)}.main` : 'divider',
+                        borderColor:
+                          selectedRole === role
+                            ? `${getRoleColor(role)}.main`
+                            : 'divider',
                         minHeight: 80,
                       }}
                       onClick={() => setSelectedRole(role)}
                     >
                       <CardContent sx={{ textAlign: 'center', py: 1 }}>
-                        <Box mb={0.5}>
-                          {roleIcons[role]}
-                        </Box>
+                        <Box mb={0.5}>{roleIcons[role]}</Box>
                         <Typography variant="caption" display="block">
                           {getRoleDisplayName(role)}
                         </Typography>
-                        <Chip 
+                        <Chip
                           label={`${ROLE_PERMISSIONS[role]?.length || 0}`}
                           size="small"
-                          color={selectedRole === role ? getRoleColor(role) : "default"}
-                          variant={selectedRole === role ? "filled" : "outlined"}
+                          color={
+                            selectedRole === role
+                              ? getRoleColor(role)
+                              : 'default'
+                          }
+                          variant={
+                            selectedRole === role ? 'filled' : 'outlined'
+                          }
                         />
                       </CardContent>
                     </Card>
@@ -262,38 +284,58 @@ export default function RoleDemo() {
               <Typography variant="h6" gutterBottom>
                 Permissions by Category
               </Typography>
-              
-              {Object.entries(categorizePermissions()).map(([category, permissions]) => (
-                <Accordion key={category}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box display="flex" alignItems="center" gap={2} width="100%">
-                      <Typography variant="subtitle1" sx={{ flex: 1 }}>
-                        {category}
-                      </Typography>
-                      <Chip 
-                        label={`${permissions.filter(p => getPermissionStatus(selectedRole, p)).length}/${permissions.length}`}
-                        size="small"
-                        color={permissions.filter(p => getPermissionStatus(selectedRole, p)).length > 0 ? "primary" : "default"}
-                      />
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <List dense>
-                      {permissions.map((permission) => (
-                        <ListItem key={permission}>
-                          <ListItemIcon>
-                            <PermissionIcon hasPermission={getPermissionStatus(selectedRole, permission)} />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                            secondary={permission}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  </AccordionDetails>
-                </Accordion>
-              ))}
+
+              {Object.entries(categorizePermissions()).map(
+                ([category, permissions]) => (
+                  <Accordion key={category}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        gap={2}
+                        width="100%"
+                      >
+                        <Typography variant="subtitle1" sx={{ flex: 1 }}>
+                          {category}
+                        </Typography>
+                        <Chip
+                          label={`${permissions.filter(p => getPermissionStatus(selectedRole, p)).length}/${permissions.length}`}
+                          size="small"
+                          color={
+                            permissions.filter(p =>
+                              getPermissionStatus(selectedRole, p)
+                            ).length > 0
+                              ? 'primary'
+                              : 'default'
+                          }
+                        />
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <List dense>
+                        {permissions.map(permission => (
+                          <ListItem key={permission}>
+                            <ListItemIcon>
+                              <PermissionIcon
+                                hasPermission={getPermissionStatus(
+                                  selectedRole,
+                                  permission
+                                )}
+                              />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={permission
+                                .replace(/_/g, ' ')
+                                .replace(/\b\w/g, l => l.toUpperCase())}
+                              secondary={permission}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </AccordionDetails>
+                  </Accordion>
+                )
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -308,15 +350,20 @@ export default function RoleDemo() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Compare access levels across all roles
               </Typography>
-              
+
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Permission Category</TableCell>
-                      {Object.values(USER_ROLES).map((role) => (
+                      {Object.values(USER_ROLES).map(role => (
                         <TableCell key={role} align="center">
-                          <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
+                          <Box
+                            display="flex"
+                            flexDirection="column"
+                            alignItems="center"
+                            gap={0.5}
+                          >
                             {roleIcons[role]}
                             <Typography variant="caption">
                               {getRoleDisplayName(role)}
@@ -327,49 +374,63 @@ export default function RoleDemo() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Object.entries(categorizePermissions()).map(([category, permissions]) => (
-                      <TableRow key={category}>
-                        <TableCell component="th" scope="row">
-                          <Typography variant="subtitle2">
-                            {category}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {permissions.length} permissions
-                          </Typography>
-                        </TableCell>
-                        {Object.values(USER_ROLES).map((role) => {
-                          const hasPermissions = permissions.filter(p => getPermissionStatus(role, p)).length;
-                          const percentage = Math.round((hasPermissions / permissions.length) * 100);
-                          return (
-                            <TableCell key={role} align="center">
-                              <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
-                                <Typography variant="body2">
-                                  {hasPermissions}/{permissions.length}
-                                </Typography>
+                    {Object.entries(categorizePermissions()).map(
+                      ([category, permissions]) => (
+                        <TableRow key={category}>
+                          <TableCell component="th" scope="row">
+                            <Typography variant="subtitle2">
+                              {category}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {permissions.length} permissions
+                            </Typography>
+                          </TableCell>
+                          {Object.values(USER_ROLES).map(role => {
+                            const hasPermissions = permissions.filter(p =>
+                              getPermissionStatus(role, p)
+                            ).length;
+                            const percentage = Math.round(
+                              (hasPermissions / permissions.length) * 100
+                            );
+                            return (
+                              <TableCell key={role} align="center">
                                 <Box
-                                  sx={{
-                                    width: 30,
-                                    height: 4,
-                                    borderRadius: 2,
-                                    backgroundColor: 'grey.300',
-                                    position: 'relative',
-                                  }}
+                                  display="flex"
+                                  flexDirection="column"
+                                  alignItems="center"
+                                  gap={0.5}
                                 >
+                                  <Typography variant="body2">
+                                    {hasPermissions}/{permissions.length}
+                                  </Typography>
                                   <Box
                                     sx={{
-                                      width: `${percentage}%`,
-                                      height: '100%',
+                                      width: 30,
+                                      height: 4,
                                       borderRadius: 2,
-                                      backgroundColor: `${getRoleColor(role)}.main`,
+                                      backgroundColor: 'grey.300',
+                                      position: 'relative',
                                     }}
-                                  />
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: `${percentage}%`,
+                                        height: '100%',
+                                        borderRadius: 2,
+                                        backgroundColor: `${getRoleColor(role)}.main`,
+                                      }}
+                                    />
+                                  </Box>
                                 </Box>
-                              </Box>
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      )
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -385,8 +446,8 @@ export default function RoleDemo() {
                 Ready to Get Started?
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
-                Contact us to learn more about implementing role-based access control 
-                for your organization's specific needs.
+                Contact us to learn more about implementing role-based access
+                control for your organization's specific needs.
               </Typography>
               <Button variant="contained" size="large" href="/support">
                 Contact Sales

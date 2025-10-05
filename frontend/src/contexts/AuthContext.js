@@ -29,26 +29,22 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // TEMPORARILY DISABLED for debugging login issues
     // if (!tokenExpiryTime || !sessionStartTime) return;
-
     // const checkTokenExpiry = () => {
     //   const now = Date.now();
     //   const timeUntilExpiry = tokenExpiryTime - now;
     //   const sessionDuration = now - sessionStartTime;
-
     //   // Auto-logout if token expired or max session time reached
     //   if (timeUntilExpiry <= 0 || sessionDuration >= MAX_SESSION_TIME) {
     //     console.warn('Session expired - logging out');
     //     logout();
     //     return;
     //   }
-
     //   // Warn user before token expires
     //   if (timeUntilExpiry <= TOKEN_EXPIRY_BUFFER && timeUntilExpiry > 0) {
     //     console.warn('Token expiring soon - should refresh');
     //     // Could trigger refresh token flow here
     //   }
     // };
-
     // const interval = setInterval(checkTokenExpiry, 30000); // Check every 30 seconds
     // return () => clearInterval(interval);
   }, [tokenExpiryTime, sessionStartTime]);
@@ -57,24 +53,20 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // TEMPORARILY DISABLED for debugging login issues
     // const updateActivity = () => setLastActivity(Date.now());
-    
     // // Track various user interactions
     // const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     // events.forEach(event => {
     //   document.addEventListener(event, updateActivity, true);
     // });
-
     // // Check for idle timeout
     // const idleCheck = setInterval(() => {
     //   const idleTime = Date.now() - lastActivity;
     //   const maxIdleTime = 30 * 60 * 1000; // 30 minutes idle timeout
-      
     //   if (user && idleTime > maxIdleTime) {
     //     console.warn('Session idle timeout - logging out');
     //     logout();
     //   }
     // }, ACTIVITY_CHECK_INTERVAL);
-
     // return () => {
     //   events.forEach(event => {
     //     document.removeEventListener(event, updateActivity, true);
@@ -89,7 +81,6 @@ export const AuthProvider = ({ children }) => {
     // const handleBeforeUnload = (event) => {
     //   clearStoredAuth();
     // };
-
     // const handleVisibilityChange = () => {
     //   if (document.hidden && user) {
     //     setTimeout(() => {
@@ -101,10 +92,8 @@ export const AuthProvider = ({ children }) => {
     //     }, 30000);
     //   }
     // };
-
     // window.addEventListener('beforeunload', handleBeforeUnload);
     // document.addEventListener('visibilitychange', handleVisibilityChange);
-
     // return () => {
     //   window.removeEventListener('beforeunload', handleBeforeUnload);
     //   document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -136,7 +125,13 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Validate required fields
-      if (!userData.id || !userData.email || !userData.role || !tenantData.id || !tenantData.name) {
+      if (
+        !userData.id ||
+        !userData.email ||
+        !userData.role ||
+        !tenantData.id ||
+        !tenantData.name
+      ) {
         console.error('Missing required fields in stored auth data');
         return null;
       }
@@ -151,7 +146,7 @@ export const AuthProvider = ({ children }) => {
         return null;
       }
 
-      if (sessionStart && (now - sessionStart) >= MAX_SESSION_TIME) {
+      if (sessionStart && now - sessionStart >= MAX_SESSION_TIME) {
         console.warn('Max session time exceeded');
         return null;
       }
@@ -161,7 +156,7 @@ export const AuthProvider = ({ children }) => {
         user: userData,
         tenant: tenantData,
         expiry: expiryTime,
-        sessionStart: sessionStart
+        sessionStart: sessionStart,
       };
     } catch (error) {
       console.error('Error validating stored auth data:', error);
@@ -174,20 +169,20 @@ export const AuthProvider = ({ children }) => {
     const loadAuthData = () => {
       try {
         const validatedAuth = validateStoredAuth();
-        
+
         if (validatedAuth) {
           setToken(validatedAuth.token);
           setUser(validatedAuth.user);
           setTenant(validatedAuth.tenant);
           setTokenExpiryTime(validatedAuth.expiry);
           setSessionStartTime(validatedAuth.sessionStart);
-          
+
           // Load refresh token separately (may not exist)
           const storedRefreshToken = sessionStorage.getItem('refresh_token');
           if (storedRefreshToken) {
             setRefreshToken(storedRefreshToken);
           }
-          
+
           // IMPORTANT: Set the token in the API service
           const { setAuthToken } = require('../services/api');
           setAuthToken(validatedAuth.token);
@@ -215,18 +210,24 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem('session_start');
   };
 
-  const login = async (authData) => {
+  const login = async authData => {
     try {
-      const { access_token, refresh_token, user: userData, tenant: tenantData, expires_in } = authData;
-      
-      console.log('🔐 AuthContext: Login called with data:', { 
-        hasToken: !!access_token, 
-        hasUser: !!userData, 
+      const {
+        access_token,
+        refresh_token,
+        user: userData,
+        tenant: tenantData,
+        expires_in,
+      } = authData;
+
+      console.log('🔐 AuthContext: Login called with data:', {
+        hasToken: !!access_token,
+        hasUser: !!userData,
         hasTenant: !!tenantData,
         userData: userData,
-        tenantData: tenantData
+        tenantData: tenantData,
       });
-      
+
       // Validate required auth data
       if (!access_token || !userData || !tenantData) {
         throw new Error('Invalid authentication data received');
@@ -234,8 +235,8 @@ export const AuthProvider = ({ children }) => {
 
       // Calculate token expiry time
       const now = Date.now();
-      const expiryTime = now + ((expires_in || 3600) * 1000); // Default to 1 hour if not provided
-      
+      const expiryTime = now + (expires_in || 3600) * 1000; // Default to 1 hour if not provided
+
       setToken(access_token);
       setRefreshToken(refresh_token);
       setUser(userData);
@@ -250,19 +251,24 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.setItem('tenant_data', JSON.stringify(tenantData));
       sessionStorage.setItem('token_expiry', expiryTime.toString());
       sessionStorage.setItem('session_start', now.toString());
-      
+
       if (refresh_token) {
         sessionStorage.setItem('refresh_token', refresh_token);
       }
 
-      console.log(`✅ User ${userData.email} logged in successfully with role: ${userData.role}`);
-      console.log('🔑 Token stored in sessionStorage:', access_token.substring(0, 20) + '...');
-      
+      console.log(
+        `✅ User ${userData.email} logged in successfully with role: ${userData.role}`
+      );
+      console.log(
+        '🔑 Token stored in sessionStorage:',
+        access_token.substring(0, 20) + '...'
+      );
+
       // IMPORTANT: Set the token in the API service immediately
       console.log('🔧 Setting token in API service after login...');
       const { setAuthToken } = require('../services/api');
       setAuthToken(access_token);
-      
+
       // Wait a brief moment for state to update
       await new Promise(resolve => setTimeout(resolve, 50));
     } catch (error) {
@@ -293,12 +299,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateUser = (userData) => {
+  const updateUser = userData => {
     try {
       if (!userData || !userData.id) {
         throw new Error('Invalid user data');
       }
-      
+
       setUser(userData);
       sessionStorage.setItem('user_data', JSON.stringify(userData));
       console.log('User data updated');
@@ -307,12 +313,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateTenant = (tenantData) => {
+  const updateTenant = tenantData => {
     try {
       if (!tenantData || !tenantData.id) {
         throw new Error('Invalid tenant data');
       }
-      
+
       setTenant(tenantData);
       sessionStorage.setItem('tenant_data', JSON.stringify(tenantData));
       console.log('Tenant data updated');
@@ -325,7 +331,7 @@ export const AuthProvider = ({ children }) => {
     if (!token || !user || !tenant) {
       return false;
     }
-    
+
     // TEMPORARILY DISABLED for debugging
     // Check if session is still valid
     // const now = Date.now();
@@ -339,18 +345,18 @@ export const AuthProvider = ({ children }) => {
     //   logout();
     //   return false;
     // }
-    
+
     // Validate user object completeness
     if (!user.id || !user.email || !user.role) {
       console.warn('Incomplete user data:', user);
       // TEMPORARILY DISABLED: logout();
       return false;
     }
-    
+
     return true;
   };
 
-  const hasRole = (role) => {
+  const hasRole = role => {
     return user?.role === role;
   };
 
@@ -367,7 +373,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Security: Permission checking with proper validation
-  const hasUserPermission = (permission) => {
+  const hasUserPermission = permission => {
     if (!user?.role) return false;
     return hasPermission(user.role, permission);
   };
@@ -380,13 +386,15 @@ export const AuthProvider = ({ children }) => {
   // Security: Get session info for monitoring
   const getSessionInfo = () => {
     if (!isAuthenticated()) return null;
-    
+
     const now = Date.now();
     return {
       sessionDuration: sessionStartTime ? now - sessionStartTime : 0,
       timeUntilExpiry: tokenExpiryTime ? tokenExpiryTime - now : 0,
       lastActivity: now - lastActivity,
-      isNearExpiry: tokenExpiryTime ? (tokenExpiryTime - now) <= TOKEN_EXPIRY_BUFFER : false
+      isNearExpiry: tokenExpiryTime
+        ? tokenExpiryTime - now <= TOKEN_EXPIRY_BUFFER
+        : false,
     };
   };
 
@@ -410,11 +418,7 @@ export const AuthProvider = ({ children }) => {
     getSessionInfo,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthContext;

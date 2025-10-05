@@ -44,7 +44,7 @@ const Tasks = () => {
     onSuccess: () => queryClient.invalidateQueries('tasks'),
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = data => {
     const inputData = {};
     try {
       if (data.input_data) {
@@ -69,14 +69,14 @@ const Tasks = () => {
       field: 'created_at',
       headerName: 'Created',
       width: 150,
-      renderCell: (params) => format(new Date(params.value), 'MMM dd, yyyy'),
+      renderCell: params => format(new Date(params.value), 'MMM dd, yyyy'),
     },
     {
       field: 'actions',
       headerName: 'Actions',
       width: 120,
       sortable: false,
-      renderCell: (params) => (
+      renderCell: params => (
         <IconButton
           size="small"
           onClick={() => executeMutation.mutate(params.row.id)}
@@ -95,7 +95,12 @@ const Tasks = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h4">Tasks</Typography>
         <Button
           variant="contained"
@@ -116,7 +121,12 @@ const Tasks = () => {
         />
       </Box>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogTitle>Create New Task</DialogTitle>
           <DialogContent>
@@ -158,7 +168,7 @@ const Tasks = () => {
                   <FormControl fullWidth error={!!fieldState.error}>
                     <InputLabel>Agent</InputLabel>
                     <Select {...field} label="Agent">
-                      {agents.map((agent) => (
+                      {agents.map(agent => (
                         <MenuItem key={agent.id} value={agent.id}>
                           {agent.name} ({agent.agent_type})
                         </MenuItem>
@@ -176,7 +186,9 @@ const Tasks = () => {
                   <FormControl fullWidth error={!!fieldState.error}>
                     <InputLabel>Task Type</InputLabel>
                     <Select {...field} label="Task Type">
-                      <MenuItem value="text_processing">Text Processing</MenuItem>
+                      <MenuItem value="text_processing">
+                        Text Processing
+                      </MenuItem>
                       <MenuItem value="api_call">API Call</MenuItem>
                       <MenuItem value="workflow">Workflow</MenuItem>
                     </Select>

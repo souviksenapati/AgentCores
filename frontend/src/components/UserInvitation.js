@@ -32,12 +32,12 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  USER_ROLES, 
+import {
+  USER_ROLES,
   PERMISSIONS,
-  getRoleDisplayName, 
+  getRoleDisplayName,
   getRoleColor,
-  ROLE_PERMISSIONS 
+  ROLE_PERMISSIONS,
 } from '../utils/rolePermissions';
 
 const UserInvitation = ({ open, onClose, onInvite }) => {
@@ -57,10 +57,19 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
     switch (user?.role) {
       case 'owner':
         // Owner can assign all except owner and individual (individual is for personal accounts only)
-        return Object.values(USER_ROLES).filter(role => role !== 'owner' && role !== 'individual');
+        return Object.values(USER_ROLES).filter(
+          role => role !== 'owner' && role !== 'individual'
+        );
       case 'admin':
         // Admin can't create other admins or individual accounts
-        return ['manager', 'developer', 'analyst', 'operator', 'viewer', 'guest'];
+        return [
+          'manager',
+          'developer',
+          'analyst',
+          'operator',
+          'viewer',
+          'guest',
+        ];
       case 'manager':
         // Manager can assign below manager level (no individual role)
         return ['developer', 'analyst', 'operator', 'viewer', 'guest'];
@@ -71,10 +80,10 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
 
   const assignableRoles = getAssignableRoles();
 
-  const handleInputChange = (field) => (event) => {
+  const handleInputChange = field => event => {
     setFormData(prev => ({
       ...prev,
-      [field]: event.target.value
+      [field]: event.target.value,
     }));
     if (error) setError('');
   };
@@ -100,13 +109,13 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
     try {
       // Mock API call - replace with actual API
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // In real implementation, this would call the backend API
       const invitationData = {
         ...formData,
         invitedBy: user.email,
         invitedAt: new Date().toISOString(),
-        status: 'pending'
+        status: 'pending',
       };
 
       if (onInvite) {
@@ -144,7 +153,7 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
           <Typography variant="h6">Invite New User</Typography>
         </Box>
       </DialogTitle>
-      
+
       <DialogContent>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -155,8 +164,8 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
 
         <Alert severity="info" sx={{ mb: 3 }}>
           <AlertTitle>Invitation Process</AlertTitle>
-          The user will receive an email invitation with instructions to set up their account. 
-          They'll need to accept the invitation within 7 days.
+          The user will receive an email invitation with instructions to set up
+          their account. They'll need to accept the invitation within 7 days.
         </Alert>
 
         <Grid container spacing={3}>
@@ -177,7 +186,9 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
                       onChange={handleInputChange('email')}
                       required
                       InputProps={{
-                        startAdornment: <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                        startAdornment: (
+                          <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                        ),
                       }}
                       helperText="The user will receive an invitation at this email address"
                     />
@@ -214,17 +225,28 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
                     value={formData.role}
                     label="User Role"
                     onChange={handleInputChange('role')}
-                    startAdornment={<SecurityIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                    startAdornment={
+                      <SecurityIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    }
                   >
-                    {assignableRoles.map((role) => (
+                    {assignableRoles.map(role => (
                       <MenuItem key={role} value={role}>
-                        <Box display="flex" alignItems="center" gap={1} width="100%">
-                          <Chip 
+                        <Box
+                          display="flex"
+                          alignItems="center"
+                          gap={1}
+                          width="100%"
+                        >
+                          <Chip
                             label={getRoleDisplayName(role)}
                             color={getRoleColor(role)}
                             size="small"
                           />
-                          <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ ml: 1 }}
+                          >
                             {ROLE_PERMISSIONS[role]?.length || 0} permissions
                           </Typography>
                         </Box>
@@ -260,13 +282,14 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
                   Role Preview
                 </Typography>
                 <Box mb={2}>
-                  <Chip 
+                  <Chip
                     label={getRoleDisplayName(formData.role)}
                     color={getRoleColor(formData.role)}
                     sx={{ mb: 1 }}
                   />
                   <Typography variant="body2" color="text.secondary">
-                    This role has access to {selectedRolePermissions.length} permissions
+                    This role has access to {selectedRolePermissions.length}{' '}
+                    permissions
                   </Typography>
                 </Box>
 
@@ -276,22 +299,27 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
                   Key Permissions:
                 </Typography>
                 <List dense>
-                  {selectedRolePermissions.slice(0, 8).map((permission) => (
+                  {selectedRolePermissions.slice(0, 8).map(permission => (
                     <ListItem key={permission} sx={{ py: 0.25 }}>
                       <ListItemIcon sx={{ minWidth: 24 }}>
                         <SecurityIcon fontSize="small" color="primary" />
                       </ListItemIcon>
-                      <ListItemText 
-                        primary={permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      <ListItemText
+                        primary={permission
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, l => l.toUpperCase())}
                         primaryTypographyProps={{ variant: 'caption' }}
                       />
                     </ListItem>
                   ))}
                   {selectedRolePermissions.length > 8 && (
                     <ListItem>
-                      <ListItemText 
+                      <ListItemText
                         primary={`... and ${selectedRolePermissions.length - 8} more permissions`}
-                        primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
+                        primaryTypographyProps={{
+                          variant: 'caption',
+                          color: 'text.secondary',
+                        }}
                       />
                     </ListItem>
                   )}
@@ -303,18 +331,23 @@ const UserInvitation = ({ open, onClose, onInvite }) => {
       </DialogContent>
 
       <DialogActions>
-        <Button 
-          onClick={onClose} 
+        <Button
+          onClick={onClose}
           startIcon={<CloseIcon />}
           disabled={isLoading}
         >
           Cancel
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
           startIcon={<SendIcon />}
-          disabled={isLoading || !formData.email || !formData.firstName || !formData.lastName}
+          disabled={
+            isLoading ||
+            !formData.email ||
+            !formData.firstName ||
+            !formData.lastName
+          }
         >
           {isLoading ? 'Sending Invitation...' : 'Send Invitation'}
         </Button>

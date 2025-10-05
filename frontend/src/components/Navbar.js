@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Button,
-  Box,
-} from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 
@@ -26,14 +20,17 @@ const Navbar = () => {
           AgentCores
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          {navItems.map((item) => (
+          {navItems.map(item => (
             <Button
               key={item.path}
               color="inherit"
               component={Link}
               to={item.path}
               sx={{
-                backgroundColor: location.pathname === item.path ? 'rgba(255,255,255,0.1)' : 'transparent',
+                backgroundColor:
+                  location.pathname === item.path
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'transparent',
               }}
             >
               {item.label}

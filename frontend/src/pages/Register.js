@@ -38,13 +38,19 @@ const Register = () => {
 
   // Effect to handle navigation after successful registration and login
   useEffect(() => {
-    if (registrationComplete && user && (user.role === 'owner' || user.role === 'individual')) {
-      console.log('Registration complete and user authenticated, navigating to dashboard');
+    if (
+      registrationComplete &&
+      user &&
+      (user.role === 'owner' || user.role === 'individual')
+    ) {
+      console.log(
+        'Registration complete and user authenticated, navigating to dashboard'
+      );
       navigate('/dashboard');
     }
   }, [registrationComplete, user, navigate]);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -52,7 +58,11 @@ const Register = () => {
   };
 
   const validateForm = () => {
-    if (!formData.contact_name || !formData.contact_email || !formData.password) {
+    if (
+      !formData.contact_name ||
+      !formData.contact_email ||
+      !formData.password
+    ) {
       setError('Please fill in all required fields');
       return false;
     }
@@ -63,7 +73,10 @@ const Register = () => {
       return false;
     }
 
-    if (formData.userType === 'organization' && formData.organization_name.length < 2) {
+    if (
+      formData.userType === 'organization' &&
+      formData.organization_name.length < 2
+    ) {
       setError('Organization name must be at least 2 characters long');
       return false;
     }
@@ -93,18 +106,20 @@ const Register = () => {
     const hasUpperCase = /[A-Z]/.test(formData.password);
     const hasLowerCase = /[a-z]/.test(formData.password);
     const hasNumbers = /\d/.test(formData.password);
-    
+
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      setError(
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+      );
       return false;
     }
 
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -142,27 +157,35 @@ const Register = () => {
 
       const response = await authAPI.register(registrationData);
       const authData = response.data;
-      
+
       // Log the user in with the returned auth data
       await login(authData);
-      
+
       // Set registration complete flag - useEffect will handle navigation
       setRegistrationComplete(true);
     } catch (error) {
       console.error('Registration error:', error);
-      if (error.response?.data?.detail?.includes('organization already exists')) {
-        setError(formData.userType === 'organization' 
-          ? 'An organization with this name already exists. Please choose a different name or contact the existing organization owner for an invitation.'
-          : 'A workspace with this name already exists. Please choose a different name.');
-      } else if (error.response?.data?.detail?.includes('owner already exists')) {
-        setError(formData.userType === 'organization'
-          ? 'This organization already has an owner. Only one owner is allowed per organization.'
-          : 'Registration failed. Please try again.');
+      if (
+        error.response?.data?.detail?.includes('organization already exists')
+      ) {
+        setError(
+          formData.userType === 'organization'
+            ? 'An organization with this name already exists. Please choose a different name or contact the existing organization owner for an invitation.'
+            : 'A workspace with this name already exists. Please choose a different name.'
+        );
+      } else if (
+        error.response?.data?.detail?.includes('owner already exists')
+      ) {
+        setError(
+          formData.userType === 'organization'
+            ? 'This organization already has an owner. Only one owner is allowed per organization.'
+            : 'Registration failed. Please try again.'
+        );
       } else {
         setError(
-          error.response?.data?.detail || 
-          error.response?.data?.error ||
-          'Registration failed. Please try again.'
+          error.response?.data?.detail ||
+            error.response?.data?.error ||
+            'Registration failed. Please try again.'
         );
       }
     } finally {
@@ -187,24 +210,31 @@ const Register = () => {
             ) : (
               <Person sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
             )}
-            
+
             <Typography component="h1" variant="h4" gutterBottom>
-              {formData.userType === 'organization' ? 'Create Organization' : 'Create Individual Account'}
+              {formData.userType === 'organization'
+                ? 'Create Organization'
+                : 'Create Individual Account'}
             </Typography>
-            
-            <Chip 
-              icon={formData.userType === 'organization' ? <Person /> : <Person />} 
-              label={formData.userType === 'organization' ? 'You will become the Organization Owner' : 'Personal workspace for individual use'} 
-              color="primary" 
+
+            <Chip
+              icon={
+                formData.userType === 'organization' ? <Person /> : <Person />
+              }
+              label={
+                formData.userType === 'organization'
+                  ? 'You will become the Organization Owner'
+                  : 'Personal workspace for individual use'
+              }
+              color="primary"
               variant="outlined"
               sx={{ mb: 2 }}
             />
-            
+
             <Typography variant="body2" color="text.secondary">
-              {formData.userType === 'organization' 
-                ? 'Start your AgentCores journey by creating your organization. As the owner, you\'ll have full administrative privileges and can invite team members with different roles.'
-                : 'Create your personal AgentCores workspace. Perfect for individual projects and personal AI agent management.'
-              }
+              {formData.userType === 'organization'
+                ? "Start your AgentCores journey by creating your organization. As the owner, you'll have full administrative privileges and can invite team members with different roles."
+                : 'Create your personal AgentCores workspace. Perfect for individual projects and personal AI agent management.'}
             </Typography>
           </Box>
 
@@ -218,10 +248,14 @@ const Register = () => {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
             {/* Account Type Selection */}
-            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ mt: 2, fontWeight: 'bold' }}
+            >
               Account Type
             </Typography>
-            
+
             <FormControl fullWidth margin="normal">
               <InputLabel>Account Type</InputLabel>
               <Select
@@ -255,10 +289,16 @@ const Register = () => {
               </Select>
             </FormControl>
 
-            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
-              {formData.userType === 'organization' ? 'Organization Details' : 'Account Details'}
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ mt: 2, fontWeight: 'bold' }}
+            >
+              {formData.userType === 'organization'
+                ? 'Organization Details'
+                : 'Account Details'}
             </Typography>
-            
+
             {/* Organization Name - Only for Organization accounts */}
             {formData.userType === 'organization' && (
               <TextField
@@ -288,7 +328,7 @@ const Register = () => {
               onChange={handleChange}
               helperText="Your full name as the organization owner"
             />
-            
+
             <TextField
               margin="normal"
               required
@@ -304,7 +344,9 @@ const Register = () => {
             />
 
             <FormControl fullWidth margin="normal">
-              <InputLabel id="subscription-tier-label">Subscription Tier</InputLabel>
+              <InputLabel id="subscription-tier-label">
+                Subscription Tier
+              </InputLabel>
               <Select
                 labelId="subscription-tier-label"
                 id="subscription_tier"
@@ -313,17 +355,27 @@ const Register = () => {
                 label="Subscription Tier"
                 onChange={handleChange}
               >
-                <MenuItem value="free">Free (5 agents, 1000 tasks/month)</MenuItem>
-                <MenuItem value="basic">Basic (25 agents, 10,000 tasks/month)</MenuItem>
-                <MenuItem value="professional">Professional (100 agents, 100,000 tasks/month)</MenuItem>
+                <MenuItem value="free">
+                  Free (5 agents, 1000 tasks/month)
+                </MenuItem>
+                <MenuItem value="basic">
+                  Basic (25 agents, 10,000 tasks/month)
+                </MenuItem>
+                <MenuItem value="professional">
+                  Professional (100 agents, 100,000 tasks/month)
+                </MenuItem>
                 <MenuItem value="enterprise">Enterprise (Unlimited)</MenuItem>
               </Select>
             </FormControl>
 
-            <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, fontWeight: 'bold' }}>
+            <Typography
+              variant="subtitle1"
+              gutterBottom
+              sx={{ mt: 3, fontWeight: 'bold' }}
+            >
               Security Settings
             </Typography>
-            
+
             <TextField
               margin="normal"
               required
@@ -350,7 +402,7 @@ const Register = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
             />
-            
+
             <Button
               type="submit"
               fullWidth
@@ -358,8 +410,13 @@ const Register = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 
-                formData.userType === 'organization' ? 'Create Organization & Become Owner' : 'Create Individual Account'}
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : formData.userType === 'organization' ? (
+                'Create Organization & Become Owner'
+              ) : (
+                'Create Individual Account'
+              )}
             </Button>
 
             <Box textAlign="center">
@@ -369,8 +426,12 @@ const Register = () => {
                   Sign In
                 </Link>
               </Typography>
-              <Typography variant="body2" sx={{ mt: 1, fontSize: '0.875rem', color: 'text.secondary' }}>
-                Note: Only one owner per organization. You can invite employees with different roles after registration.
+              <Typography
+                variant="body2"
+                sx={{ mt: 1, fontSize: '0.875rem', color: 'text.secondary' }}
+              >
+                Note: Only one owner per organization. You can invite employees
+                with different roles after registration.
               </Typography>
             </Box>
           </Box>

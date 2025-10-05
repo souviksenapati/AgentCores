@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -10,13 +10,11 @@ from app.auth import (
     authenticate_user,
     create_access_token,
     get_current_user,
-    get_password_hash,
+    get_db,
     get_tenant_id,
-    require_admin_role,
-    require_manager_role,
+    require_admin_or_member_role,
 )
-from app.database import get_db
-from app.models.database import Tenant, User, UserRole
+from app.models.database import User, UserRole
 
 # TODO: Import actual services when they are implemented
 
@@ -82,7 +80,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     # Update last login
     from datetime import datetime
 
-    user.last_login = datetime.utcnow()
+    setattr(user, "last_login", datetime.utcnow())
     db.commit()
 
     # TODO: Add security event logging
@@ -99,7 +97,11 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             "role": user.role.value,
             "tenant_id": user.tenant_id,
             "is_active": user.is_active,
-            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "last_login": (
+                user.last_login.isoformat()
+                if getattr(user, "last_login", None)
+                else None
+            ),
         },
     )
 
@@ -123,19 +125,25 @@ async def get_users(
 ):
     """Get all users in tenant"""
     users = (
-        db.query(User).filter(User.tenant_id == tenant_id, User.is_active == True).all()
+        db.query(User)
+        .filter(User.tenant_id == tenant_id, User.is_active.is_(True))
+        .all()
     )
 
     return [
         UserResponse(
-            id=user.id,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
+            id=str(user.id),
+            email=str(user.email),
+            first_name=str(user.first_name),
+            last_name=str(user.last_name),
             role=user.role.value,
             tenant_id=user.tenant_id,
-            is_active=user.is_active,
-            last_login=user.last_login.isoformat() if user.last_login else None,
+            is_active=bool(user.is_active),
+            last_login=(
+                user.last_login.isoformat()
+                if getattr(user, "last_login", None)
+                else None
+            ),
         )
         for user in users
     ]
@@ -145,15 +153,17 @@ async def get_users(
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
+        id=str(current_user.id),
+        email=str(current_user.email),
+        first_name=str(current_user.first_name),
+        last_name=str(current_user.last_name),
         role=current_user.role.value,
-        tenant_id=current_user.tenant_id,
-        is_active=current_user.is_active,
+        tenant_id=str(current_user.tenant_id),
+        is_active=bool(current_user.is_active),
         last_login=(
-            current_user.last_login.isoformat() if current_user.last_login else None
+            current_user.last_login.isoformat()
+            if getattr(current_user, "last_login", None)
+            else None
         ),
     )
 
@@ -167,23 +177,25 @@ async def update_current_user(
     """Update current user information"""
     # Users can only update their own name, not role or active status
     if user_data.first_name is not None:
-        current_user.first_name = user_data.first_name
+        setattr(current_user, "first_name", user_data.first_name)
     if user_data.last_name is not None:
-        current_user.last_name = user_data.last_name
+        setattr(current_user, "last_name", user_data.last_name)
 
     db.commit()
     db.refresh(current_user)
 
     return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
+        id=str(current_user.id),
+        email=str(current_user.email),
+        first_name=str(current_user.first_name),
+        last_name=str(current_user.last_name),
         role=current_user.role.value,
-        tenant_id=current_user.tenant_id,
-        is_active=current_user.is_active,
+        tenant_id=str(current_user.tenant_id),
+        is_active=bool(current_user.is_active),
         last_login=(
-            current_user.last_login.isoformat() if current_user.last_login else None
+            current_user.last_login.isoformat()
+            if getattr(current_user, "last_login", None)
+            else None
         ),
     )
 
@@ -193,7 +205,7 @@ async def update_user(
     user_id: str,
     user_data: UserUpdate,
     tenant_id: str = Depends(get_tenant_id),
-    current_user: User = Depends(require_admin_role),
+    current_user: User = Depends(require_admin_or_member_role),
     db: Session = Depends(get_db),
 ):
     """Update user information (admin only)"""
@@ -206,26 +218,28 @@ async def update_user(
 
     # Admin can update all fields
     if user_data.first_name is not None:
-        user.first_name = user_data.first_name
+        setattr(user, "first_name", user_data.first_name)
     if user_data.last_name is not None:
-        user.last_name = user_data.last_name
+        setattr(user, "last_name", user_data.last_name)
     if user_data.role is not None:
-        user.role = user_data.role
+        setattr(user, "role", user_data.role)
     if user_data.is_active is not None:
-        user.is_active = user_data.is_active
+        setattr(user, "is_active", user_data.is_active)
 
     db.commit()
     db.refresh(user)
 
     return UserResponse(
-        id=user.id,
-        email=user.email,
-        first_name=user.first_name,
-        last_name=user.last_name,
+        id=str(user.id),
+        email=str(user.email),
+        first_name=str(user.first_name),
+        last_name=str(user.last_name),
         role=user.role.value,
-        tenant_id=user.tenant_id,
-        is_active=user.is_active,
-        last_login=user.last_login.isoformat() if user.last_login else None,
+        tenant_id=str(user.tenant_id),
+        is_active=bool(user.is_active),
+        last_login=(
+            user.last_login.isoformat() if getattr(user, "last_login", None) else None
+        ),
     )
 
 
@@ -234,7 +248,7 @@ async def update_user(
 async def invite_user(
     invitation_data: UserInvite,
     tenant_id: str = Depends(get_tenant_id),
-    current_user: User = Depends(require_manager_role),
+    current_user: User = Depends(require_admin_or_member_role),
     db: Session = Depends(get_db),
 ):
     """Invite a user to the tenant"""

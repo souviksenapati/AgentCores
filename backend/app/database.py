@@ -5,7 +5,6 @@ Built for MVP simplicity, designed for billion-dollar platform scale.
 
 import logging
 import os
-import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -309,6 +308,18 @@ def get_db_session(account_type: str):
         )
 
 
+def get_db():
+    """
+    FastAPI dependency for database session.
+    Defaults to organization database for backwards compatibility.
+    """
+    db = OrgSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 # Dependency to get Organization DB session
 def get_org_db():
     db = OrgSessionLocal()
@@ -348,7 +359,6 @@ def init_database():
             print(f"   • {warning}")
 
     # Import models to ensure they're registered with Base
-    from app.models.database import Agent, Event, Task, Template, Tenant
 
     # Create tables in multi-tenant databases
     print("🏢 Creating organization database tables...")
@@ -366,7 +376,7 @@ def init_database():
         existing_tenant_count = db.execute(
             text("SELECT COUNT(*) FROM tenants")
         ).scalar()
-        if existing_tenant_count > 0:
+        if existing_tenant_count and existing_tenant_count > 0:
             print("ℹ️  Database already has data, skipping initialization")
             return
 
@@ -488,7 +498,7 @@ def validate_startup_configuration():
 
         print("✅ Startup configuration validated")
         print(f"   Environment: {config.ENVIRONMENT}")
-        print(f"   Database: Connected")
+        print("   Database: Connected")
         return True
 
     except Exception as e:

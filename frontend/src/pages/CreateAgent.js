@@ -35,7 +35,7 @@ const CreateAgent = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   // Use simple state instead of React Hook Form to avoid conflicts
   const [formData, setFormData] = useState({
     name: '',
@@ -53,28 +53,32 @@ const CreateAgent = () => {
   });
 
   const createMutation = useMutation(agentAPI.create, {
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries('agents');
       navigate('/agents');
     },
-    onError: (error) => {
+    onError: error => {
       console.error('❌ Agent creation failed:', error);
-      setError(error.response?.data?.detail || error.message || 'Failed to create agent');
+      setError(
+        error.response?.data?.detail ||
+          error.message ||
+          'Failed to create agent'
+      );
     },
   });
 
   const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    setActiveStep(prevActiveStep => prevActiveStep + 1);
   };
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    setActiveStep(prevActiveStep => prevActiveStep - 1);
   };
 
   const updateField = (fieldName, value) => {
     setFormData(prev => ({
       ...prev,
-      [fieldName]: value
+      [fieldName]: value,
     }));
   };
 
@@ -97,7 +101,7 @@ const CreateAgent = () => {
         concurrent_tasks: parseInt(formData.concurrent_tasks) || 1,
       },
     };
-    
+
     setError('');
     createMutation.mutate(agentData);
   };
@@ -118,14 +122,34 @@ const CreateAgent = () => {
   ];
 
   const agentTypes = [
-    { value: 'gpt-4', label: 'GPT-4 (OpenAI)', description: 'Advanced reasoning and complex tasks' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (OpenAI)', description: 'Fast and efficient for most tasks' },
-    { value: 'claude-3', label: 'Claude 3 (Anthropic)', description: 'Strong analytical and writing capabilities' },
-    { value: 'gemini-pro', label: 'Gemini Pro (Google)', description: 'Multimodal AI with broad knowledge' },
-    { value: 'custom', label: 'Custom Agent', description: 'Custom implementation or API' },
+    {
+      value: 'gpt-4',
+      label: 'GPT-4 (OpenAI)',
+      description: 'Advanced reasoning and complex tasks',
+    },
+    {
+      value: 'gpt-3.5-turbo',
+      label: 'GPT-3.5 Turbo (OpenAI)',
+      description: 'Fast and efficient for most tasks',
+    },
+    {
+      value: 'claude-3',
+      label: 'Claude 3 (Anthropic)',
+      description: 'Strong analytical and writing capabilities',
+    },
+    {
+      value: 'gemini-pro',
+      label: 'Gemini Pro (Google)',
+      description: 'Multimodal AI with broad knowledge',
+    },
+    {
+      value: 'custom',
+      label: 'Custom Agent',
+      description: 'Custom implementation or API',
+    },
   ];
 
-  const toggleCapability = (capability) => {
+  const toggleCapability = capability => {
     const current = formData.capabilities || [];
     const newCapabilities = current.includes(capability)
       ? current.filter(c => c !== capability)
@@ -133,7 +157,7 @@ const CreateAgent = () => {
     updateField('capabilities', newCapabilities);
   };
 
-  const renderStepContent = (step) => {
+  const renderStepContent = step => {
     switch (step) {
       case 0:
         return (
@@ -141,7 +165,7 @@ const CreateAgent = () => {
             <Grid item xs={12}>
               <TextField
                 value={formData.name}
-                onChange={(e) => updateField('name', e.target.value)}
+                onChange={e => updateField('name', e.target.value)}
                 label="Agent Name"
                 fullWidth
                 placeholder="e.g., Content Writer Agent"
@@ -150,7 +174,7 @@ const CreateAgent = () => {
             <Grid item xs={12}>
               <TextField
                 value={formData.description}
-                onChange={(e) => updateField('description', e.target.value)}
+                onChange={e => updateField('description', e.target.value)}
                 label="Description"
                 fullWidth
                 multiline
@@ -161,12 +185,12 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
                 <InputLabel>Agent Type</InputLabel>
-                <Select 
-                  value={formData.agent_type} 
-                  onChange={(e) => updateField('agent_type', e.target.value)} 
+                <Select
+                  value={formData.agent_type}
+                  onChange={e => updateField('agent_type', e.target.value)}
                   label="Agent Type"
                 >
-                  {agentTypes.map((type) => (
+                  {agentTypes.map(type => (
                     <MenuItem key={type.value} value={type.value}>
                       <Box>
                         <Typography>{type.label}</Typography>
@@ -182,7 +206,7 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 value={formData.version}
-                onChange={(e) => updateField('version', e.target.value)}
+                onChange={e => updateField('version', e.target.value)}
                 label="Version"
                 fullWidth
                 placeholder="1.0.0"
@@ -195,7 +219,9 @@ const CreateAgent = () => {
         return (
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography gutterBottom>Temperature: {formData.temperature}</Typography>
+              <Typography gutterBottom>
+                Temperature: {formData.temperature}
+              </Typography>
               <Slider
                 value={formData.temperature}
                 onChange={(e, value) => updateField('temperature', value)}
@@ -212,7 +238,7 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 value={formData.max_tokens}
-                onChange={(e) => updateField('max_tokens', e.target.value)}
+                onChange={e => updateField('max_tokens', e.target.value)}
                 label="Max Tokens"
                 type="number"
                 fullWidth
@@ -223,7 +249,7 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 value={formData.timeout}
-                onChange={(e) => updateField('timeout', e.target.value)}
+                onChange={e => updateField('timeout', e.target.value)}
                 label="Timeout (seconds)"
                 type="number"
                 fullWidth
@@ -234,9 +260,9 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
                 <InputLabel>Priority</InputLabel>
-                <Select 
-                  value={formData.priority} 
-                  onChange={(e) => updateField('priority', e.target.value)} 
+                <Select
+                  value={formData.priority}
+                  onChange={e => updateField('priority', e.target.value)}
                   label="Priority"
                 >
                   <MenuItem value="low">Low</MenuItem>
@@ -249,9 +275,9 @@ const CreateAgent = () => {
             <Grid item xs={12}>
               <FormControlLabel
                 control={
-                  <Switch 
-                    checked={formData.auto_start} 
-                    onChange={(e) => updateField('auto_start', e.target.checked)} 
+                  <Switch
+                    checked={formData.auto_start}
+                    onChange={e => updateField('auto_start', e.target.checked)}
                   />
                 }
                 label="Auto-start agent after creation"
@@ -268,16 +294,25 @@ const CreateAgent = () => {
                 Select Agent Capabilities
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Choose the capabilities your agent will have. You can add more later.
+                Choose the capabilities your agent will have. You can add more
+                later.
               </Typography>
               <Box display="flex" flexWrap="wrap" gap={1}>
-                {availableCapabilities.map((capability) => (
+                {availableCapabilities.map(capability => (
                   <Chip
                     key={capability}
                     label={capability.replace('_', ' ')}
                     onClick={() => toggleCapability(capability)}
-                    color={formData.capabilities?.includes(capability) ? 'primary' : 'default'}
-                    variant={formData.capabilities?.includes(capability) ? 'filled' : 'outlined'}
+                    color={
+                      formData.capabilities?.includes(capability)
+                        ? 'primary'
+                        : 'default'
+                    }
+                    variant={
+                      formData.capabilities?.includes(capability)
+                        ? 'filled'
+                        : 'outlined'
+                    }
                     clickable
                   />
                 ))}
@@ -286,7 +321,7 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 value={formData.memory_limit}
-                onChange={(e) => updateField('memory_limit', e.target.value)}
+                onChange={e => updateField('memory_limit', e.target.value)}
                 label="Memory Limit (MB)"
                 type="number"
                 fullWidth
@@ -297,7 +332,7 @@ const CreateAgent = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 value={formData.concurrent_tasks}
-                onChange={(e) => updateField('concurrent_tasks', e.target.value)}
+                onChange={e => updateField('concurrent_tasks', e.target.value)}
                 label="Concurrent Tasks"
                 type="number"
                 fullWidth
@@ -318,38 +353,80 @@ const CreateAgent = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>Basic Information</Typography>
-                <Typography><strong>Name:</strong> {formData.name || 'Not set'}</Typography>
-                <Typography><strong>Type:</strong> {formData.agent_type || 'Not set'}</Typography>
-                <Typography><strong>Version:</strong> {formData.version || 'Not set'}</Typography>
-                <Typography><strong>Description:</strong> {formData.description || 'Not set'}</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  Basic Information
+                </Typography>
+                <Typography>
+                  <strong>Name:</strong> {formData.name || 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Type:</strong> {formData.agent_type || 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Version:</strong> {formData.version || 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Description:</strong>{' '}
+                  {formData.description || 'Not set'}
+                </Typography>
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>Configuration</Typography>
-                <Typography><strong>Temperature:</strong> {formData.temperature}</Typography>
-                <Typography><strong>Max Tokens:</strong> {formData.max_tokens || 'Not set'}</Typography>
-                <Typography><strong>Timeout:</strong> {formData.timeout ? `${formData.timeout}s` : 'Not set'}</Typography>
-                <Typography><strong>Priority:</strong> {formData.priority}</Typography>
-                <Typography><strong>Auto-start:</strong> {formData.auto_start ? 'Yes' : 'No'}</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  Configuration
+                </Typography>
+                <Typography>
+                  <strong>Temperature:</strong> {formData.temperature}
+                </Typography>
+                <Typography>
+                  <strong>Max Tokens:</strong>{' '}
+                  {formData.max_tokens || 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Timeout:</strong>{' '}
+                  {formData.timeout ? `${formData.timeout}s` : 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Priority:</strong> {formData.priority}
+                </Typography>
+                <Typography>
+                  <strong>Auto-start:</strong>{' '}
+                  {formData.auto_start ? 'Yes' : 'No'}
+                </Typography>
               </Paper>
             </Grid>
             <Grid item xs={12}>
               <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>Capabilities</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  Capabilities
+                </Typography>
                 <Box display="flex" flexWrap="wrap" gap={1}>
-                  {(formData.capabilities || []).map((capability) => (
-                    <Chip key={capability} label={capability.replace('_', ' ')} size="small" />
+                  {(formData.capabilities || []).map(capability => (
+                    <Chip
+                      key={capability}
+                      label={capability.replace('_', ' ')}
+                      size="small"
+                    />
                   ))}
                 </Box>
               </Paper>
             </Grid>
             <Grid item xs={12}>
               <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>Resources</Typography>
-                <Typography><strong>Memory Limit:</strong> {formData.memory_limit ? `${formData.memory_limit} MB` : 'Not set'}</Typography>
-                <Typography><strong>Concurrent Tasks:</strong> {formData.concurrent_tasks || 'Not set'}</Typography>
+                <Typography variant="subtitle1" gutterBottom>
+                  Resources
+                </Typography>
+                <Typography>
+                  <strong>Memory Limit:</strong>{' '}
+                  {formData.memory_limit
+                    ? `${formData.memory_limit} MB`
+                    : 'Not set'}
+                </Typography>
+                <Typography>
+                  <strong>Concurrent Tasks:</strong>{' '}
+                  {formData.concurrent_tasks || 'Not set'}
+                </Typography>
               </Paper>
             </Grid>
           </Grid>
@@ -384,7 +461,7 @@ const CreateAgent = () => {
 
       <Paper sx={{ p: 3 }}>
         <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label) => (
+          {steps.map(label => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
             </Step>
@@ -394,10 +471,7 @@ const CreateAgent = () => {
         {renderStepContent(activeStep)}
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-          <Button
-            onClick={handleBack}
-            disabled={activeStep === 0}
-          >
+          <Button onClick={handleBack} disabled={activeStep === 0}>
             Back
           </Button>
           <Box>
@@ -411,10 +485,7 @@ const CreateAgent = () => {
                 {createMutation.isLoading ? 'Creating...' : 'Create Agent'}
               </Button>
             ) : (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-              >
+              <Button variant="contained" onClick={handleNext}>
                 Next
               </Button>
             )}

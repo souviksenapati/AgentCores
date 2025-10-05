@@ -7,19 +7,15 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import HTTPException, status
-from sqlalchemy import and_, func, or_
+from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.database import (
-    Agent,
     InvitationStatus,
     SecurityEvent,
-    Task,
     Tenant,
     TenantInvitation,
-    TenantStatus,
-    TenantTier,
     User,
     UserRole,
 )
@@ -38,7 +34,7 @@ class TenantService:
         """Get all users for a tenant"""
         return (
             db.query(User)
-            .filter(User.tenant_id == tenant_id, User.is_active == True)
+            .filter(User.tenant_id == tenant_id, User.is_active.is_(True))
             .all()
         )
 
@@ -53,7 +49,7 @@ class TenantService:
         total_users = db.query(User).filter(User.tenant_id == tenant_id).count()
         active_users = (
             db.query(User)
-            .filter(User.tenant_id == tenant_id, User.is_active == True)
+            .filter(User.tenant_id == tenant_id, User.is_active.is_(True))
             .count()
         )
 
@@ -124,7 +120,7 @@ class UserService:
 
     @staticmethod
     def get_user_by_email(
-        db: Session, email: str, tenant_id: str = None
+        db: Session, email: str, tenant_id: Optional[str] = None
     ) -> Optional[User]:
         """Get user by email, optionally filtered by tenant"""
         query = db.query(User).filter(User.email == email)
@@ -141,8 +137,8 @@ class UserService:
         last_name: str,
         password_hash: str,
         role: UserRole,
-        department: str = None,
-        job_title: str = None,
+        department: Optional[str] = None,
+        job_title: Optional[str] = None,
     ) -> User:
         """Create a new user"""
         # Check if user already exists
@@ -182,7 +178,7 @@ class UserService:
             raise HTTPException(status_code=404, detail="User not found")
 
         old_role = user.role
-        user.role = new_role
+        setattr(user, "role", new_role)
         user.updated_at = datetime.utcnow()
 
         # Log the role change as a security event
@@ -212,7 +208,7 @@ class UserService:
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        user.is_active = False
+        setattr(user, "is_active", False)
         user.updated_at = datetime.utcnow()
 
         # Log the deactivation
@@ -235,7 +231,7 @@ class UserService:
         """Update user's last activity timestamp"""
         user = UserService.get_user_by_id(db, user_id)
         if user:
-            user.last_activity = datetime.utcnow()
+            setattr(user, "last_activity", datetime.utcnow())
             db.commit()
 
 
@@ -248,13 +244,13 @@ class SecurityService:
         tenant_id: str,
         event_type: str,
         severity: str,
-        user_id: str = None,
-        ip_address: str = None,
-        user_agent: str = None,
-        event_data: Dict = None,
-        result: str = None,
+        user_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        event_data: Optional[Dict] = None,
+        result: Optional[str] = None,
         risk_score: int = 0,
-        threat_indicators: List[str] = None,
+        threat_indicators: Optional[List[str]] = None,
     ) -> SecurityEvent:
         """Log a security event"""
         event = SecurityEvent(
@@ -565,16 +561,16 @@ class InvitationService:
         user = UserService.create_user(
             db=db,
             tenant_id=invitation.tenant_id,
-            email=invitation.email,
+            email=str(invitation.email),
             first_name=first_name,
             last_name=last_name,
             password_hash=password_hash,
-            role=invitation.role,
+            role=getattr(invitation, "role", UserRole.VIEWER),
         )
 
         # Mark invitation as accepted
-        invitation.status = InvitationStatus.ACCEPTED
-        invitation.accepted_at = datetime.utcnow()
+        setattr(invitation, "status", InvitationStatus.ACCEPTED)
+        setattr(invitation, "accepted_at", datetime.utcnow())
         invitation.accepted_by = user.id
 
         db.commit()

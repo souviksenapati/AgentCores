@@ -42,12 +42,16 @@ import {
 
 import { agentAPI, taskAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { PERMISSIONS, getRoleDisplayName, getRoleColor } from '../utils/rolePermissions';
+import {
+  PERMISSIONS,
+  getRoleDisplayName,
+  getRoleColor,
+} from '../utils/rolePermissions';
 
 const Dashboard = () => {
   const { user, tenant, hasUserPermission } = useAuth();
   const [systemHealth, setSystemHealth] = useState('healthy');
-  
+
   const { data: agentsData, isLoading: agentsLoading } = useQuery(
     'agents',
     () => agentAPI.getAll(),
@@ -79,14 +83,16 @@ const Dashboard = () => {
     if (user?.role === 'demo') {
       // Simulate some activity for demo users
       const interval = setInterval(() => {
-        setSystemHealth(prev => prev === 'healthy' ? 'warning' : 'healthy');
+        setSystemHealth(prev => (prev === 'healthy' ? 'warning' : 'healthy'));
       }, 10000);
       return () => clearInterval(interval);
     }
   }, [user?.role]);
 
-  if ((agentsLoading && hasUserPermission(PERMISSIONS.VIEW_AGENTS)) || 
-      (tasksLoading && hasUserPermission(PERMISSIONS.VIEW_TASKS))) {
+  if (
+    (agentsLoading && hasUserPermission(PERMISSIONS.VIEW_AGENTS)) ||
+    (tasksLoading && hasUserPermission(PERMISSIONS.VIEW_TASKS))
+  ) {
     return <LinearProgress />;
   }
 
@@ -96,26 +102,50 @@ const Dashboard = () => {
   // Enhanced stats with role-based visibility
   const stats = {
     totalAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS) ? agents.length : 0,
-    runningAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS) ? agents.filter(a => a.status === 'running').length : 0,
-    idleAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS) ? agents.filter(a => a.status === 'idle').length : 0,
-    errorAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS) ? agents.filter(a => a.status === 'error').length : 0,
+    runningAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS)
+      ? agents.filter(a => a.status === 'running').length
+      : 0,
+    idleAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS)
+      ? agents.filter(a => a.status === 'idle').length
+      : 0,
+    errorAgents: hasUserPermission(PERMISSIONS.VIEW_AGENTS)
+      ? agents.filter(a => a.status === 'error').length
+      : 0,
     totalTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS) ? tasks.length : 0,
-    pendingTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS) ? tasks.filter(t => t.status === 'pending').length : 0,
-    completedTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS) ? tasks.filter(t => t.status === 'completed').length : 0,
-    failedTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS) ? tasks.filter(t => t.status === 'failed').length : 0,
+    pendingTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS)
+      ? tasks.filter(t => t.status === 'pending').length
+      : 0,
+    completedTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS)
+      ? tasks.filter(t => t.status === 'completed').length
+      : 0,
+    failedTasks: hasUserPermission(PERMISSIONS.VIEW_TASKS)
+      ? tasks.filter(t => t.status === 'failed').length
+      : 0,
   };
 
-  const getSubscriptionColor = (tier) => {
+  const getSubscriptionColor = tier => {
     switch (tier) {
-      case 'free': return 'default';
-      case 'basic': return 'primary';
-      case 'professional': return 'secondary';
-      case 'enterprise': return 'success';
-      default: return 'default';
+      case 'free':
+        return 'default';
+      case 'basic':
+        return 'primary';
+      case 'professional':
+        return 'secondary';
+      case 'enterprise':
+        return 'success';
+      default:
+        return 'default';
     }
   };
 
-  const StatCard = ({ title, value, icon, color = 'primary', subtitle = null, onClick = null }) => (
+  const StatCard = ({
+    title,
+    value,
+    icon,
+    color = 'primary',
+    subtitle = null,
+    onClick = null,
+  }) => (
     <Card sx={{ cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
       <CardContent>
         <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -140,16 +170,21 @@ const Dashboard = () => {
     </Card>
   );
 
-  const QuickActionCard = ({ title, description, icon, href, permission, color = 'primary' }) => {
+  const QuickActionCard = ({
+    title,
+    description,
+    icon,
+    href,
+    permission,
+    color = 'primary',
+  }) => {
     if (!hasUserPermission(permission)) return null;
-    
+
     return (
       <Card sx={{ height: '100%' }}>
         <CardContent>
           <Box display="flex" alignItems="flex-start" gap={2}>
-            <Avatar sx={{ bgcolor: `${color}.main` }}>
-              {icon}
-            </Avatar>
+            <Avatar sx={{ bgcolor: `${color}.main` }}>{icon}</Avatar>
             <Box flex={1}>
               <Typography variant="h6" gutterBottom>
                 {title}
@@ -161,8 +196,8 @@ const Dashboard = () => {
           </Box>
         </CardContent>
         <CardActions>
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             href={href}
             startIcon={<LaunchIcon />}
             color={color}
@@ -213,7 +248,13 @@ const Dashboard = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header with Role Badge */}
       <Box mb={4}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          flexWrap="wrap"
+          gap={2}
+        >
           <Box>
             <Typography variant="h4" gutterBottom>
               Dashboard
@@ -222,14 +263,14 @@ const Dashboard = () => {
               <Typography variant="h6" color="text.secondary">
                 Welcome back, {user?.full_name || user?.email}
               </Typography>
-              <Chip 
+              <Chip
                 label={getRoleDisplayName(user?.role)}
                 color={getRoleColor(user?.role)}
                 variant="outlined"
                 size="small"
               />
               {tenant && (
-                <Chip 
+                <Chip
                   label={`${tenant.subscription_tier} plan`}
                   color={getSubscriptionColor(tenant.subscription_tier)}
                   variant="outlined"
@@ -247,18 +288,22 @@ const Dashboard = () => {
       {/* Demo User Alert */}
       {user?.role === 'demo' && (
         <AlertCard severity="info" title="Demo Mode Active">
-          You're exploring our platform in demo mode. All data shown is for demonstration purposes only.
-          Contact us to learn more about our enterprise features.
+          You're exploring our platform in demo mode. All data shown is for
+          demonstration purposes only. Contact us to learn more about our
+          enterprise features.
         </AlertCard>
       )}
 
       {/* System Health Alert for Operators and Admins */}
-      {(hasUserPermission(PERMISSIONS.VIEW_SYSTEM_HEALTH) || hasUserPermission(PERMISSIONS.MANAGE_MONITORING)) && systemHealth !== 'healthy' && (
-        <AlertCard severity="warning" title="System Health Alert">
-          Some services are experiencing performance issues. Click here to view detailed system status.
-        </AlertCard>
-      )}
-      
+      {(hasUserPermission(PERMISSIONS.VIEW_SYSTEM_HEALTH) ||
+        hasUserPermission(PERMISSIONS.MANAGE_MONITORING)) &&
+        systemHealth !== 'healthy' && (
+          <AlertCard severity="warning" title="System Health Alert">
+            Some services are experiencing performance issues. Click here to
+            view detailed system status.
+          </AlertCard>
+        )}
+
       {/* Key Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {hasUserPermission(PERMISSIONS.VIEW_AGENTS) && (
@@ -270,10 +315,10 @@ const Dashboard = () => {
                 subtitle={`${stats.runningAgents} running`}
                 icon={<SmartToyIcon fontSize="large" />}
                 color="primary"
-                onClick={() => window.location.href = '/agents'}
+                onClick={() => (window.location.href = '/agents')}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <StatCard
                 title="Running Agents"
@@ -285,7 +330,7 @@ const Dashboard = () => {
             </Grid>
           </>
         )}
-        
+
         {hasUserPermission(PERMISSIONS.VIEW_TASKS) && (
           <>
             <Grid item xs={12} sm={6} md={3}>
@@ -295,17 +340,21 @@ const Dashboard = () => {
                 subtitle={`${stats.pendingTasks} pending`}
                 icon={<AssignmentIcon fontSize="large" />}
                 color="info"
-                onClick={() => window.location.href = '/tasks'}
+                onClick={() => (window.location.href = '/tasks')}
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <StatCard
                 title="Task Success Rate"
-                value={stats.totalTasks > 0 ? `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%` : '0%'}
+                value={
+                  stats.totalTasks > 0
+                    ? `${Math.round((stats.completedTasks / stats.totalTasks) * 100)}%`
+                    : '0%'
+                }
                 subtitle={`${stats.failedTasks} failed`}
                 icon={<CheckIcon fontSize="large" />}
-                color={stats.failedTasks > 0 ? "warning" : "success"}
+                color={stats.failedTasks > 0 ? 'warning' : 'success'}
               />
             </Grid>
           </>
@@ -320,7 +369,7 @@ const Dashboard = () => {
               subtitle="$45.20 this week"
               icon={<CostIcon fontSize="large" />}
               color="secondary"
-              onClick={() => window.location.href = '/costs'}
+              onClick={() => (window.location.href = '/costs')}
             />
           </Grid>
         )}
@@ -334,7 +383,7 @@ const Dashboard = () => {
               subtitle="All services operational"
               icon={<MonitorIcon fontSize="large" />}
               color={systemHealth === 'healthy' ? 'success' : 'warning'}
-              onClick={() => window.location.href = '/monitoring'}
+              onClick={() => (window.location.href = '/monitoring')}
             />
           </Grid>
         )}
@@ -358,7 +407,7 @@ const Dashboard = () => {
                   color="primary"
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6} md={4}>
                 <QuickActionCard
                   title="View Analytics"
@@ -369,7 +418,7 @@ const Dashboard = () => {
                   color="secondary"
                 />
               </Grid>
-              
+
               {/* Hide user management for individual accounts */}
               {user?.role !== 'individual' && (
                 <Grid item xs={12} sm={6} md={4}>
@@ -383,7 +432,7 @@ const Dashboard = () => {
                   />
                 </Grid>
               )}
-              
+
               <Grid item xs={12} sm={6} md={4}>
                 <QuickActionCard
                   title="API Keys"
@@ -394,7 +443,7 @@ const Dashboard = () => {
                   color="warning"
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6} md={4}>
                 <QuickActionCard
                   title="Security"
@@ -405,7 +454,7 @@ const Dashboard = () => {
                   color="error"
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6} md={4}>
                 <QuickActionCard
                   title="System Admin"
@@ -433,7 +482,7 @@ const Dashboard = () => {
                   <ListItemIcon>
                     <CheckIcon color="success" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="Agent deployed successfully"
                     secondary="2 minutes ago"
                   />
@@ -442,7 +491,7 @@ const Dashboard = () => {
                   <ListItemIcon>
                     <InfoIcon color="info" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="New task created"
                     secondary="15 minutes ago"
                   />
@@ -451,14 +500,14 @@ const Dashboard = () => {
                   <ListItemIcon>
                     <WarningIcon color="warning" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="Performance alert resolved"
                     secondary="1 hour ago"
                   />
                 </ListItem>
               </List>
-              <Button 
-                size="small" 
+              <Button
+                size="small"
                 href="/activity"
                 startIcon={<ActivityIcon />}
               >
@@ -480,53 +529,59 @@ const Dashboard = () => {
                   sx={{ mb: 2 }}
                 />
                 <Typography variant="body2" color="text.secondary">
-                  {tenant.subscription_tier === 'free' && 'Up to 5 agents, 1,000 tasks/month'}
-                  {tenant.subscription_tier === 'basic' && 'Up to 25 agents, 10,000 tasks/month'}
-                  {tenant.subscription_tier === 'professional' && 'Up to 100 agents, 100,000 tasks/month'}
-                  {tenant.subscription_tier === 'enterprise' && 'Unlimited agents and tasks'}
+                  {tenant.subscription_tier === 'free' &&
+                    'Up to 5 agents, 1,000 tasks/month'}
+                  {tenant.subscription_tier === 'basic' &&
+                    'Up to 25 agents, 10,000 tasks/month'}
+                  {tenant.subscription_tier === 'professional' &&
+                    'Up to 100 agents, 100,000 tasks/month'}
+                  {tenant.subscription_tier === 'enterprise' &&
+                    'Unlimited agents and tasks'}
                 </Typography>
-                {tenant.subscription_tier === 'free' && hasUserPermission(PERMISSIONS.MANAGE_BILLING) && (
-                  <Button
-                    variant="contained"
-                    size="small"
-                    sx={{ mt: 2 }}
-                    href="/billing"
-                  >
-                    Upgrade Plan
-                  </Button>
-                )}
+                {tenant.subscription_tier === 'free' &&
+                  hasUserPermission(PERMISSIONS.MANAGE_BILLING) && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      sx={{ mt: 2 }}
+                      href="/billing"
+                    >
+                      Upgrade Plan
+                    </Button>
+                  )}
               </Box>
             </Paper>
           )}
 
           {/* Organization Settings for Owners (hide for individual accounts) */}
-          {user?.role !== 'individual' && hasUserPermission(PERMISSIONS.MANAGE_ORG_SETTINGS) && (
-            <Paper sx={{ p: 3, mt: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Organization
-              </Typography>
-              <Box display="flex" flexDirection="column" gap={1}>
-                <Button
-                  variant="outlined"
-                  startIcon={<BusinessIcon />}
-                  href="/tenant/settings"
-                  fullWidth
-                  size="small"
-                >
-                  Organization Settings
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<GroupIcon />}
-                  href="/tenant/users"
-                  fullWidth
-                  size="small"
-                >
-                  Manage Users
-                </Button>
-              </Box>
-            </Paper>
-          )}
+          {user?.role !== 'individual' &&
+            hasUserPermission(PERMISSIONS.MANAGE_ORG_SETTINGS) && (
+              <Paper sx={{ p: 3, mt: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Organization
+                </Typography>
+                <Box display="flex" flexDirection="column" gap={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<BusinessIcon />}
+                    href="/tenant/settings"
+                    fullWidth
+                    size="small"
+                  >
+                    Organization Settings
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<GroupIcon />}
+                    href="/tenant/users"
+                    fullWidth
+                    size="small"
+                  >
+                    Manage Users
+                  </Button>
+                </Box>
+              </Paper>
+            )}
 
           {/* Personal Workspace for Individual Users */}
           {user?.role === 'individual' && (

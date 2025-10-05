@@ -30,21 +30,21 @@ const Profile = () => {
     confirm_password: '',
   });
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = e => {
     setPasswordData({
       ...passwordData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleProfileSubmit = async (e) => {
+  const handleProfileSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -57,17 +57,17 @@ const Profile = () => {
     } catch (error) {
       console.error('Profile update error:', error);
       setError(
-        error.response?.data?.detail || 
-        'Failed to update profile. Please try again.'
+        error.response?.data?.detail ||
+          'Failed to update profile. Please try again.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
+  const handlePasswordSubmit = async e => {
     e.preventDefault();
-    
+
     if (passwordData.new_password !== passwordData.confirm_password) {
       setError('New passwords do not match');
       return;
@@ -96,8 +96,8 @@ const Profile = () => {
     } catch (error) {
       console.error('Password change error:', error);
       setError(
-        error.response?.data?.detail || 
-        'Failed to change password. Please try again.'
+        error.response?.data?.detail ||
+          'Failed to change password. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -135,7 +135,7 @@ const Profile = () => {
               <AccountCircle sx={{ mr: 2, fontSize: 32 }} />
               <Typography variant="h6">Profile Information</Typography>
             </Box>
-            
+
             <Box component="form" onSubmit={handleProfileSubmit}>
               <TextField
                 fullWidth
@@ -146,7 +146,7 @@ const Profile = () => {
                 margin="normal"
                 required
               />
-              
+
               <TextField
                 fullWidth
                 label="Email"
@@ -159,12 +159,14 @@ const Profile = () => {
                 disabled // Email changes might require verification
                 helperText="Contact support to change your email address"
               />
-              
+
               <Box mt={3}>
                 <Button
                   type="submit"
                   variant="contained"
-                  startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+                  startIcon={
+                    loading ? <CircularProgress size={20} /> : <Save />
+                  }
                   disabled={loading}
                 >
                   Save Changes
@@ -180,7 +182,7 @@ const Profile = () => {
             <Typography variant="h6" gutterBottom>
               Account Information
             </Typography>
-            
+
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" color="text.secondary">
                 Organization
@@ -188,19 +190,29 @@ const Profile = () => {
               <Typography variant="body1" gutterBottom>
                 {tenant?.name || 'Not assigned'}
               </Typography>
-              
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
+
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                sx={{ mt: 2 }}
+              >
                 Role
               </Typography>
               <Typography variant="body1" gutterBottom>
                 {user?.role || 'User'}
               </Typography>
-              
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
+
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                sx={{ mt: 2 }}
+              >
                 Member Since
               </Typography>
               <Typography variant="body1">
-                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
+                {user?.created_at
+                  ? new Date(user.created_at).toLocaleDateString()
+                  : 'Unknown'}
               </Typography>
             </Box>
           </Paper>
@@ -213,7 +225,7 @@ const Profile = () => {
               Change Password
             </Typography>
             <Divider sx={{ mb: 3 }} />
-            
+
             <Box component="form" onSubmit={handlePasswordSubmit}>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
@@ -227,7 +239,7 @@ const Profile = () => {
                     required
                   />
                 </Grid>
-                
+
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
@@ -240,7 +252,7 @@ const Profile = () => {
                     helperText="At least 8 characters"
                   />
                 </Grid>
-                
+
                 <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
@@ -253,12 +265,14 @@ const Profile = () => {
                   />
                 </Grid>
               </Grid>
-              
+
               <Box mt={3}>
                 <Button
                   type="submit"
                   variant="outlined"
-                  startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+                  startIcon={
+                    loading ? <CircularProgress size={20} /> : <Save />
+                  }
                   disabled={loading}
                 >
                   Change Password

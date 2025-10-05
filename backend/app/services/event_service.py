@@ -10,7 +10,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ class EventHandler:
         # Metrics
         self.events_processed = 0
         self.events_failed = 0
-        self.last_processed = None
+        self.last_processed: Optional[datetime] = None
 
     def matches_event(self, event: Event) -> bool:
         """Check if handler should process this event"""
@@ -311,12 +311,12 @@ class EventService:
         self.handlers: Dict[str, EventHandler] = {}
 
         # Event processing
-        self._event_queue = asyncio.Queue()
+        self._event_queue: asyncio.Queue = asyncio.Queue()
         self._processor_task = None
         self._running = False
 
         # Enterprise features
-        self._dead_letter_queue = asyncio.Queue()
+        self._dead_letter_queue: asyncio.Queue = asyncio.Queue()
         self._webhook_subscriptions: Dict[str, Dict[str, Any]] = {}
 
         # Metrics

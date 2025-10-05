@@ -11,8 +11,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import yaml
-
 from app.core.interfaces import AgentConfig
 
 logger = logging.getLogger(__name__)

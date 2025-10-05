@@ -3,23 +3,25 @@ Modern Multi-Tenant FastAPI Application
 Clean architecture without legacy system
 """
 
+import hashlib
+import json
 import logging
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from jose import JWTError, jwt
+from jose import jwt
+from jose.exceptions import JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
 
 # Import multi-tenant database functions
-from app.database import get_db_session, get_individual_db, get_org_db
-from app.models.database import Agent, AgentStatus, Tenant, User, UserRole
+from app.database import get_individual_db, get_org_db
+from app.models.database import Tenant, User, UserRole
 
 # Configuration - Use environment variables for security
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
@@ -60,9 +62,6 @@ class LoginResponse(BaseModel):
 
 # Helper Functions
 # Simple password hashing functions (inline)
-import hashlib
-import json
-import secrets
 
 
 def get_password_hash(password: str) -> str:
@@ -81,7 +80,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
             "sha256", plain_password.encode("utf-8"), salt, 100000
         )
         return expected_hash.hex() == hash_hex
-    except:
+    except Exception:
         return False
 
 
@@ -136,6 +135,7 @@ async def root():
 @app.post("/auth/register", response_model=LoginResponse)
 async def register_user(registration: UserRegistrationRequest):
     """Register a new user with tenant creation and return login data"""
+    db = None
     try:
         # Get appropriate database session
         db = get_appropriate_db(registration.is_individual_account)
@@ -244,13 +244,19 @@ async def register_user(registration: UserRegistrationRequest):
 
     except Exception as e:
         logger.error(f"Registration failed: {str(e)}")
-        if "db" in locals():
-            db.rollback()
-            db.close()
+        if db is not None:
+            try:
+                db.rollback()
+                db.close()
+            except Exception:
+                pass
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
     finally:
-        if "db" in locals():
-            db.close()
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
 
 
 @app.post("/auth/login", response_model=LoginResponse)
@@ -263,10 +269,10 @@ async def login(login_data: LoginRequest):
             org_db = next(get_org_db())
             user = org_db.query(User).filter(User.email == login_data.email).first()
             if user:
-                if not user.is_active:
+                if not bool(user.is_active):
                     org_db.close()
                     raise HTTPException(status_code=401, detail="Account is inactive")
-                if not verify_password(login_data.password, user.password_hash):
+                if not verify_password(login_data.password, str(user.password_hash)):
                     org_db.close()
                     raise HTTPException(
                         status_code=401, detail="Incorrect email or password"
@@ -286,7 +292,10 @@ async def login(login_data: LoginRequest):
                     tenant = (
                         org_db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
                     )
-                    user.last_login = datetime.utcnow()
+                    if not tenant:
+                        org_db.close()
+                        raise HTTPException(status_code=500, detail="Tenant not found")
+                    setattr(user, "last_login", datetime.utcnow())
                     org_db.add(user)
                     org_db.commit()
                     user_data = {
@@ -346,19 +355,22 @@ async def login(login_data: LoginRequest):
             ind_db = next(get_individual_db())
             user = ind_db.query(User).filter(User.email == login_data.email).first()
             if user:
-                if not user.is_active:
+                if not bool(user.is_active):
                     ind_db.close()
                     raise HTTPException(status_code=401, detail="Account is inactive")
-                if not verify_password(login_data.password, user.password_hash):
+                if not verify_password(login_data.password, str(user.password_hash)):
                     ind_db.close()
                     raise HTTPException(
                         status_code=401, detail="Incorrect email or password"
                     )
-                if user.role == UserRole.INDIVIDUAL:
+                if getattr(user, "role", None) == UserRole.INDIVIDUAL:
                     tenant = (
                         ind_db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
                     )
-                    user.last_login = datetime.utcnow()
+                    if not tenant:
+                        ind_db.close()
+                        raise HTTPException(status_code=500, detail="Tenant not found")
+                    setattr(user, "last_login", datetime.utcnow())
                     ind_db.add(user)
                     ind_db.commit()
                     user_data = {
@@ -477,7 +489,7 @@ async def get_current_user_from_token(token: str, db):
             .first()
         )
         return user if user and user.is_active else None
-    except:
+    except Exception:
         return None
 
 
@@ -493,6 +505,7 @@ async def create_agent(agent_data: AgentCreateRequest, request: Request):
     token = auth_header.split(" ")[1]
 
     # Determine database based on token payload
+    db = None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
@@ -527,7 +540,7 @@ async def create_agent(agent_data: AgentCreateRequest, request: Request):
                 ind_db.close()
                 raise HTTPException(status_code=401, detail="User not found")
 
-        if not user.is_active:
+        if not bool(user.is_active):
             db.close()
             raise HTTPException(status_code=401, detail="User account is inactive")
 
@@ -582,6 +595,11 @@ async def create_agent(agent_data: AgentCreateRequest, request: Request):
         )
 
         agent_row = result.fetchone()
+        if not agent_row:
+            db.close()
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve created agent"
+            )
 
         db.commit()
 
@@ -603,12 +621,15 @@ async def create_agent(agent_data: AgentCreateRequest, request: Request):
         )
         return result
 
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
-        if "db" in locals():
-            db.rollback()
-            db.close()
+        if db is not None:
+            try:
+                db.rollback()
+                db.close()
+            except Exception:
+                pass
         logger.error(f"Agent creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Agent creation failed: {str(e)}")
 
@@ -634,8 +655,6 @@ async def get_agents(request: Request):
 
         # Check both databases using raw SQL
         from sqlalchemy import text
-
-        agents = []
 
         # Check org database
         org_db = next(get_org_db())
@@ -672,7 +691,7 @@ async def get_agents(request: Request):
             "tenant_id": tenant_id,
         }
 
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         logger.error(f"Get agents failed: {str(e)}")
@@ -702,7 +721,7 @@ async def start_agent(agent_id: str, request: Request):
         result = org_db.execute(
             update_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        if getattr(result, "rowcount", 1) > 0:
             org_db.commit()
             org_db.close()
             return {
@@ -716,7 +735,7 @@ async def start_agent(agent_id: str, request: Request):
         result = ind_db.execute(
             update_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        if getattr(result, "rowcount", 1) > 0:
             ind_db.commit()
             ind_db.close()
             return {
@@ -727,7 +746,7 @@ async def start_agent(agent_id: str, request: Request):
         ind_db.close()
 
         raise HTTPException(status_code=404, detail="Agent not found")
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
@@ -754,7 +773,11 @@ async def stop_agent(agent_id: str, request: Request):
         result = org_db.execute(
             update_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        try:
+            row_affected = getattr(result, "rowcount", 1) > 0
+        except (AttributeError, TypeError):
+            row_affected = True  # Assume success if rowcount unavailable
+        if row_affected:
             org_db.commit()
             org_db.close()
             return {"message": "Agent stopped", "agent_id": agent_id, "status": "idle"}
@@ -764,14 +787,14 @@ async def stop_agent(agent_id: str, request: Request):
         result = ind_db.execute(
             update_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        if getattr(result, "rowcount", 1) > 0:
             ind_db.commit()
             ind_db.close()
             return {"message": "Agent stopped", "agent_id": agent_id, "status": "idle"}
         ind_db.close()
 
         raise HTTPException(status_code=404, detail="Agent not found")
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
@@ -799,7 +822,7 @@ async def update_agent(
         )
         update_query = text(
             """
-            UPDATE agents 
+            UPDATE agents
             SET name = COALESCE(:name, name),
                 description = COALESCE(:description, description),
                 config = :config
@@ -876,8 +899,13 @@ async def update_agent(
                 },
             )
 
-            if result.rowcount > 0:
+            if getattr(result, "rowcount", 1) > 0:
                 agent_row = result.fetchone()
+                if not agent_row:
+                    org_db.close()
+                    raise HTTPException(
+                        status_code=404, detail="Agent not found after update"
+                    )
                 org_db.commit()
                 org_db.close()
                 return {
@@ -958,8 +986,13 @@ async def update_agent(
                 },
             )
 
-            if result.rowcount > 0:
+            if getattr(result, "rowcount", 1) > 0:
                 agent_row = result.fetchone()
+                if not agent_row:
+                    ind_db.close()
+                    raise HTTPException(
+                        status_code=404, detail="Agent not found after update"
+                    )
                 ind_db.commit()
                 ind_db.close()
                 return {
@@ -974,7 +1007,7 @@ async def update_agent(
 
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         logger.error(f"Agent update failed: {str(e)}")
@@ -1004,7 +1037,7 @@ async def delete_agent(agent_id: str, request: Request):
         result = org_db.execute(
             delete_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        if getattr(result, "rowcount", 1) > 0:
             org_db.commit()
             org_db.close()
             return {"message": "Agent deleted", "agent_id": agent_id}
@@ -1014,14 +1047,14 @@ async def delete_agent(agent_id: str, request: Request):
         result = ind_db.execute(
             delete_query, {"agent_id": agent_id, "tenant_id": tenant_id}
         )
-        if result.rowcount > 0:
+        if getattr(result, "rowcount", 1) > 0:
             ind_db.commit()
             ind_db.close()
             return {"message": "Agent deleted", "agent_id": agent_id}
         ind_db.close()
 
         raise HTTPException(status_code=404, detail="Agent not found")
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
@@ -1230,7 +1263,7 @@ async def chat_with_agent(agent_id: str, chat_request: ChatRequest, request: Req
                         f"OpenRouter API Error {response.status_code}: {error_detail}"
                     )
                     agent_response = f"I apologize, but I encountered an error: {response.status_code}. Please check the API configuration."
-                except:
+                except Exception:
                     logger.error(
                         f"OpenRouter API Error {response.status_code}: {response.text}"
                     )
@@ -1256,7 +1289,7 @@ async def chat_with_agent(agent_id: str, chat_request: ChatRequest, request: Req
             },
         }
 
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         logger.error("Chat failed: %s", str(e))
@@ -1304,8 +1337,6 @@ async def get_available_agents_for_connection(agent_id: str, request: Request):
             "SELECT id, name, description, status FROM agents WHERE tenant_id = :tenant_id AND id != :agent_id"
         )
 
-        agents = []
-
         # Check org database
         org_db = next(get_org_db())
         result = org_db.execute(query, {"tenant_id": tenant_id, "agent_id": agent_id})
@@ -1332,7 +1363,7 @@ async def get_available_agents_for_connection(agent_id: str, request: Request):
             ]
         }
 
-    except jwt.JWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

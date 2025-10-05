@@ -1,21 +1,19 @@
-from fastapi import FastAPI, Depends, Request, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-import uvicorn
-import os
 from datetime import datetime
-from typing import Optional
 
-from app.database import engine, get_db, Base
-from app.models.database import *  # Import all models to register them with Base
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
 from app.api.security import router as security_router
+from app.database import Base, individual_engine, org_engine
+from app.models.database import *  # Import all models to register them with Base
 from app.schemas import HealthCheck
-from app.services.agent_service import TenantService
 
 # Create database tables
-Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=org_engine)
+Base.metadata.create_all(bind=individual_engine)
 
 # Initialize FastAPI app
 app = FastAPI(

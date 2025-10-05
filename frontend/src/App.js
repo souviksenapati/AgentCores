@@ -47,7 +47,13 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <Router>
-            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: '100vh',
+              }}
+            >
               {/* Keep top navigation only for public/marketing pages. Authenticated pages will use AppLayout's AppBar. */}
               <Navigation />
               <Box component="main" sx={{ flexGrow: 1 }}>
@@ -57,61 +63,82 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/create-tenant" element={<CreateTenant />} />
-                  
+
                   {/* Protected routes */}
-                  <Route path="/dashboard" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Dashboard />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agents" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Agents />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agents/create" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <CreateAgent />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/agents/:id" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <AgentDetail />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/tasks" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Tasks />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/profile" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <Profile />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/role-demo" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <RoleDemo />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Dashboard />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/agents"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Agents />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/agents/create"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <CreateAgent />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/agents/:id"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <AgentDetail />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/tasks"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Tasks />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <Profile />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/role-demo"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <RoleDemo />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Placeholder routes for sidebar entries */}
                   {[
                     '/analytics',
-                    '/advanced-analytics', 
+                    '/advanced-analytics',
                     '/reports',
                     '/costs',
                     '/billing',
@@ -136,37 +163,55 @@ function App() {
                     '/docs',
                     '/support',
                     '/task-queue',
-                  ].map((p) => (
-                    <Route key={p} path={p} element={
-                      <ProtectedRoute>
-                        <AppLayout>
-                          <Placeholder title={p.replace('/', '').replace(/-/g, ' ').replace(/\//g, ' / ')} />
-                        </AppLayout>
-                      </ProtectedRoute>
-                    } />
+                  ].map(p => (
+                    <Route
+                      key={p}
+                      path={p}
+                      element={
+                        <ProtectedRoute>
+                          <AppLayout>
+                            <Placeholder
+                              title={p
+                                .replace('/', '')
+                                .replace(/-/g, ' ')
+                                .replace(/\//g, ' / ')}
+                            />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
                   ))}
                   {/* Security Dashboard with proper component */}
-                  <Route path="/security" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <SecurityDashboard />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/security-audit" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <SecurityAudit />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/users" element={
-                    <ProtectedRoute>
-                      <AppLayout>
-                        <UserManagement />
-                      </AppLayout>
-                    </ProtectedRoute>
-                  } />
+                  <Route
+                    path="/security"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <SecurityDashboard />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/security-audit"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <SecurityAudit />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/users"
+                    element={
+                      <ProtectedRoute>
+                        <AppLayout>
+                          <UserManagement />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="/unauthorized" element={<Unauthorized />} />
                 </Routes>
               </Box>

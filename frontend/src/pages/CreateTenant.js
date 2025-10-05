@@ -28,19 +28,19 @@ const CreateTenant = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const validateName = (name) => {
+  const validateName = name => {
     // Organization name should be at least 2 characters
     return name.length >= 2;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -55,18 +55,18 @@ const CreateTenant = () => {
     try {
       await tenantAPI.create(formData);
       setSuccess(true);
-      
+
       // Redirect to registration after a short delay
       setTimeout(() => {
-        navigate('/register', { 
-          state: { tenant_name: formData.name } 
+        navigate('/register', {
+          state: { tenant_name: formData.name },
         });
       }, 2000);
     } catch (error) {
       console.error('Tenant creation error:', error);
       setError(
-        error.response?.data?.detail || 
-        'Failed to create organization. Please try again.'
+        error.response?.data?.detail ||
+          'Failed to create organization. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -90,8 +90,8 @@ const CreateTenant = () => {
                 Organization Created Successfully!
               </Typography>
               <Typography variant="body2">
-                Your organization "{formData.name}" has been created successfully.
-                Redirecting you to create your admin account...
+                Your organization "{formData.name}" has been created
+                successfully. Redirecting you to create your admin account...
               </Typography>
             </Alert>
           </Paper>
@@ -114,8 +114,13 @@ const CreateTenant = () => {
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Create Organization
           </Typography>
-          
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
+
+          <Typography
+            variant="body2"
+            align="center"
+            color="text.secondary"
+            sx={{ mb: 3 }}
+          >
             Start your AgentCores journey by creating your organization
           </Typography>
 
@@ -152,7 +157,7 @@ const CreateTenant = () => {
               onChange={handleChange}
               helperText="Primary contact person for this organization"
             />
-            
+
             <TextField
               margin="normal"
               required
@@ -168,7 +173,9 @@ const CreateTenant = () => {
             />
 
             <FormControl fullWidth margin="normal">
-              <InputLabel id="subscription-tier-label">Subscription Tier</InputLabel>
+              <InputLabel id="subscription-tier-label">
+                Subscription Tier
+              </InputLabel>
               <Select
                 labelId="subscription-tier-label"
                 id="subscription_tier"
@@ -177,13 +184,19 @@ const CreateTenant = () => {
                 label="Subscription Tier"
                 onChange={handleChange}
               >
-                <MenuItem value="free">Free (5 agents, 1000 tasks/month)</MenuItem>
-                <MenuItem value="basic">Basic (25 agents, 10,000 tasks/month)</MenuItem>
-                <MenuItem value="professional">Professional (100 agents, 100,000 tasks/month)</MenuItem>
+                <MenuItem value="free">
+                  Free (5 agents, 1000 tasks/month)
+                </MenuItem>
+                <MenuItem value="basic">
+                  Basic (25 agents, 10,000 tasks/month)
+                </MenuItem>
+                <MenuItem value="professional">
+                  Professional (100 agents, 100,000 tasks/month)
+                </MenuItem>
                 <MenuItem value="enterprise">Enterprise (Unlimited)</MenuItem>
               </Select>
             </FormControl>
-            
+
             <Button
               type="submit"
               fullWidth

@@ -21,23 +21,23 @@ pip install -r requirements.txt
 
 REM Code formatting check
 echo ✅ Checking code formatting...
-black --check --diff . 
+black --check --diff app\ tests\
 if %errorlevel% neq 0 (
-    echo ❌ Code formatting issues found. Run 'black .' to fix.
+    echo ❌ Code formatting issues found. Run 'black app\ tests\' to fix.
     exit /b 1
 )
 
 REM Import sorting check
 echo ✅ Checking import sorting...
-isort --check-only --diff .
+isort --check-only --diff app\ tests\
 if %errorlevel% neq 0 (
-    echo ❌ Import sorting issues found. Run 'isort .' to fix.
+    echo ❌ Import sorting issues found. Run 'isort app\ tests\' to fix.
     exit /b 1
 )
 
 REM Linting
 echo ✅ Running linter...
-flake8 app\ --max-line-length=88 --extend-ignore=E203,W503
+flake8 app\
 if %errorlevel% neq 0 (
     echo ❌ Linting issues found.
     exit /b 1

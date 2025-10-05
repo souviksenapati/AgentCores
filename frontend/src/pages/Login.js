@@ -35,13 +35,13 @@ const Login = () => {
   const [attemptCount, setAttemptCount] = useState(0);
 
   // Enhanced error extraction
-  const extractErrorMessage = (error) => {
+  const extractErrorMessage = error => {
     // Priority order for error messages
     const errorSources = [
       error?.response?.data?.error,
       error?.response?.data?.detail,
       error?.response?.data?.message,
-      error?.message
+      error?.message,
     ];
 
     for (const errorSource of errorSources) {
@@ -67,16 +67,15 @@ const Login = () => {
   };
 
   // Enhanced credential validation
-  const validateCredentials = (credentials) => {
+  const validateCredentials = credentials => {
     const errors = [];
-    
+
     if (!credentials.email) {
       errors.push('Email is required');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credentials.email)) {
       errors.push('Please enter a valid email address');
     }
-    
-    
+
     if (!credentials.password) {
       errors.push('Password is required');
     } else if (credentials.password.length < 3) {
@@ -91,7 +90,7 @@ const Login = () => {
         errors.push('Organization name must be at least 2 characters');
       }
     }
-    
+
     return errors;
   };
 
@@ -105,20 +104,32 @@ const Login = () => {
 
   // Clear error when user starts typing
   useEffect(() => {
-    if (error && (formData.email || formData.password || formData.organization || formData.userType)) {
+    if (
+      error &&
+      (formData.email ||
+        formData.password ||
+        formData.organization ||
+        formData.userType)
+    ) {
       const timer = setTimeout(() => {
         setError('');
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [formData.email, formData.password, formData.organization, formData.userType, error]);
+  }, [
+    formData.email,
+    formData.password,
+    formData.organization,
+    formData.userType,
+    error,
+  ]);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -135,7 +146,7 @@ const Login = () => {
       }
 
       console.log(`Login attempt #${attemptCount + 1} for:`, formData.email);
-      
+
       // Add is_individual_account to payload for backend
       const loginPayload = {
         ...formData,
@@ -154,8 +165,13 @@ const Login = () => {
         throw new Error('Incomplete user data received');
       }
 
-      console.log('Login successful for:', authData.user.email, 'Role:', authData.user.role);
-      
+      console.log(
+        'Login successful for:',
+        authData.user.email,
+        'Role:',
+        authData.user.role
+      );
+
       // Persist auth in context
       await login(authData);
 
@@ -187,11 +203,15 @@ const Login = () => {
             Sign In to AgentCores
           </Typography>
 
-          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            {formData.userType === 'organization' 
+          <Typography
+            variant="body2"
+            align="center"
+            color="text.secondary"
+            sx={{ mb: 3 }}
+          >
+            {formData.userType === 'organization'
               ? 'Enter your credentials to access your organization'
-              : 'Enter your credentials to access your personal workspace'
-            }
+              : 'Enter your credentials to access your personal workspace'}
           </Typography>
 
           {error && (
@@ -247,7 +267,7 @@ const Login = () => {
               onChange={handleChange}
               autoComplete="email"
               autoFocus
-            />          
+            />
 
             <TextField
               margin="normal"
@@ -298,8 +318,8 @@ const Login = () => {
 
             <Box textAlign="center">
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Don’t have an account? Ask your organization admin to invite you,
-
+                Don’t have an account? Ask your organization admin to invite
+                you,
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 <strong>Ready to get started?</strong>{' '}
@@ -307,7 +327,12 @@ const Login = () => {
                   Create Account
                 </Link>
               </Typography>
-              <Button component={Link} to="/forgot-password" variant="text" size="small">
+              <Button
+                component={Link}
+                to="/forgot-password"
+                variant="text"
+                size="small"
+              >
                 Forgot Password?
               </Button>
             </Box>

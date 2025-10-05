@@ -21,7 +21,7 @@ const Navigation = () => {
   // Hide this top nav when a user is logged in to avoid duplication with AppLayout
   if (user) return null;
 
-  const handleMenu = (event) => {
+  const handleMenu = event => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -56,7 +56,7 @@ const Navigation = () => {
         <Typography
           variant="h6"
           component={Link}
-          to={user ? "/dashboard" : "/"}
+          to={user ? '/dashboard' : '/'}
           sx={{
             flexGrow: 1,
             textDecoration: 'none',
