@@ -213,26 +213,91 @@ jobs:
         
     - name: Unit Tests
       working-directory: ./backend
+      timeout-minutes: 15
       env:
         DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
         REDIS_URL: redis://localhost:6379/0
         SECRET_KEY: test_secret_key_for_ci_pipeline
         OPENROUTER_API_KEY: test_api_key_placeholder
       run: |
-        echo "Running backend unit tests..."
+        set -e
+        
+        echo "=== BACKEND UNIT TESTS ==="
         echo "Current working directory: $(pwd)"
         echo "Python version: $(python --version)"
-        echo "Environment variables:"
+        echo "Pytest version: $(pytest --version)"
+        
+        echo ""
+        echo "=== Environment Check ==="
         echo "DATABASE_URL: $DATABASE_URL"
         echo "REDIS_URL: $REDIS_URL"
+        
+        echo ""
+        echo "=== Test Discovery ==="
         echo "Available test files:"
         find tests/ -name "*.py" -type f | head -10
-        echo "Test directory contents:"
-        ls -la tests/ || echo "Tests directory not found"
-        echo "App directory contents:"
-        ls -la app/ || echo "App directory not found"
-        echo "Starting pytest with coverage..."
-        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=46 --cov-report=term-missing
+        echo "Total test files: $(find tests/ -name "*.py" -type f | wc -l)"
+        
+        echo ""
+        echo "=== Dependency Check ==="
+        python -c "import pytest, coverage, asyncio; print('Core dependencies: OK')" || {
+          echo "FATAL: Missing test dependencies"
+          pip list | grep -E "(pytest|coverage)"
+          exit 1
+        }
+        
+        echo ""
+        echo "=== Database Connectivity ==="
+        python -c "import psycopg2; conn=psycopg2.connect('$DATABASE_URL'); conn.close(); print('Database connection: OK')" || {
+          echo "Database connection: FAILED"
+          exit 1
+        }
+        
+        echo ""
+        echo "=== Test Collection Check ==="
+        if ! pytest --collect-only -q tests/ > /dev/null 2>&1; then
+          echo "FATAL: Test collection failed"
+          pytest --collect-only tests/
+          exit 1
+        fi
+        echo "Test collection: OK"
+        
+        echo ""
+        echo "=== Starting Tests ==="
+        echo "Command: pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-fail-under=46 --cov-report=term-missing --tb=short"
+        
+        # Run tests with detailed output
+        pytest tests/ -v \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-fail-under=46 \
+            --cov-report=term-missing \
+            --tb=short \
+            --maxfail=5 \
+            --durations=10 \
+            --strict-markers || {
+          exit_code=$?
+          echo ""
+          echo "FAILURE: Tests failed with exit code: $exit_code"
+          
+          # Show coverage info even on failure
+          if [ -f "coverage.xml" ]; then
+            echo "Coverage report was generated despite failures"
+          fi
+          
+          # Show test summary
+          echo "Last 20 lines of potential error output:"
+          tail -20 pytest.log 2>/dev/null || echo "No pytest.log found"
+          
+          exit $exit_code
+        }
+        
+        echo ""
+        echo "SUCCESS: All tests completed successfully!"
+        if [ -f "coverage.xml" ]; then
+          echo "Coverage report generated: coverage.xml"
+        fi
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
