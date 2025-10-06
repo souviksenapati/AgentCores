@@ -6,7 +6,7 @@ Built for MVP simplicity, designed for billion-dollar platform scale.
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 from passlib.context import CryptContext
@@ -291,6 +291,7 @@ is_ci = os.getenv("CI", "").lower() in ("true", "1") or os.getenv(
 ).lower() in ("true", "1")
 
 # Try multiple hashing schemes with fallbacks
+hashing_schemes: List[Dict[str, Union[List[str], str, int]]]
 if is_ci:
     # In CI, skip bcrypt due to potential 72-byte limit issues during initialization
     hashing_schemes = [
@@ -308,11 +309,29 @@ else:
 
 for scheme_config in hashing_schemes:
     try:
-        pwd_context = CryptContext(**scheme_config)
-        logger.info(f"Password hashing initialized with: {scheme_config['schemes'][0]}")
+        # Extract schemes safely
+        schemes = scheme_config.get("schemes", [])
+        if not schemes or not isinstance(schemes, list):
+            continue
+
+        # Create context with explicit parameters
+        if "bcrypt__rounds" in scheme_config:
+            pwd_context = CryptContext(
+                schemes=schemes,
+                deprecated=scheme_config.get("deprecated", "auto"),
+                bcrypt__rounds=scheme_config.get("bcrypt__rounds", 12),
+            )
+        else:
+            pwd_context = CryptContext(
+                schemes=schemes, deprecated=scheme_config.get("deprecated", "auto")
+            )
+
+        logger.info(f"Password hashing initialized with: {schemes[0]}")
         break
     except Exception as e:
-        logger.warning(f"Failed to initialize {scheme_config['schemes'][0]}: {e}")
+        schemes = scheme_config.get("schemes", ["unknown"])
+        scheme_name = schemes[0] if isinstance(schemes, list) and schemes else "unknown"
+        logger.warning(f"Failed to initialize {scheme_name}: {e}")
         continue
 
 if pwd_context is None:
