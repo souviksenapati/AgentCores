@@ -283,9 +283,6 @@ IndividualSessionLocal = sessionmaker(
 Base = declarative_base()
 
 # Password hashing with defensive configuration
-from typing import Optional
-from passlib.context import CryptContext
-
 pwd_context: Optional[CryptContext] = None
 try:
     # Try to initialize bcrypt with safer configuration
