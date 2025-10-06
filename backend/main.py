@@ -1,14 +1,15 @@
 from datetime import datetime
 
 import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.agents import router as agents_router
 from app.api.auth import router as auth_router
 from app.api.security import router as security_router
 from app.database import Base, individual_engine, org_engine
 from app.models.database import *  # Import all models to register them with Base
 from app.schemas import HealthCheck
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 
 # Create database tables
 Base.metadata.create_all(bind=org_engine)

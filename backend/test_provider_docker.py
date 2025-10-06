@@ -9,8 +9,7 @@ import sys
 # Add the app directory to the path
 sys.path.append("/app")
 
-from app.core.interfaces import (AgentConfig, AgentType,  # noqa: E402
-                                 ProviderType)
+from app.core.interfaces import AgentConfig, AgentType, ProviderType  # noqa: E402
 from app.providers.openrouter_provider import OpenRouterProvider  # noqa: E402
 
 
