@@ -467,10 +467,10 @@ jobs:
     - name: Build and test Docker containers
       run: |
         echo "Building Docker containers..."
-        docker-compose -f docker-compose.yml build
+        docker compose -f docker-compose.yml build
         
         echo "Starting containers for testing..."
-        docker-compose -f docker-compose.yml up -d
+        docker compose -f docker-compose.yml up -d
         
         echo "Waiting for services to be ready..."
         sleep 45
@@ -484,7 +484,7 @@ jobs:
         echo "All services are healthy!"
         
         echo "Cleaning up test containers..."
-        docker-compose -f docker-compose.yml down
+        docker compose -f docker-compose.yml down
 
   # Integration Tests
   integration-test:
@@ -499,7 +499,7 @@ jobs:
     - name: Run integration tests
       run: |
         echo "Starting full integration test suite..."
-        docker-compose up -d
+        docker compose up -d
         
         echo "Waiting for all services to be fully ready..."
         sleep 60
@@ -510,7 +510,7 @@ jobs:
         curl --fail http://localhost:3000 || exit 1
         
         echo "Integration tests completed!"
-        docker-compose down
+        docker compose down
 
   # Deploy to Staging (dev branch only)
   deploy-staging:
